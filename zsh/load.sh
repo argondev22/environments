@@ -2,3 +2,5 @@
 
 cp ~/.zshrc ~/.zshrc.bak
 cp .zshrc ~/.zshrc
+
+source ~/.zshrc
