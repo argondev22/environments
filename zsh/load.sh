@@ -1,6 +1,8 @@
 #! /bin/zsh
 
 cp ~/.zshrc ~/.zshrc.bak
-cp .zshrc ~/.zshrc
+
+SCRIPT_DIR=$(dirname "$0")
+cp ${SCRIPT_DIR}/.zshrc ~/.zshrc
 
 source ~/.zshrc
