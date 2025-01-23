@@ -17,6 +17,8 @@ zplug load
 #####################
 
 alias mkdir='mkdir -p'
+alias cp='cp -i'
+alias mv='mv -i'
 alias rm='rm -i'
 alias grep='grep --color'
 alias ll='ls -la'
