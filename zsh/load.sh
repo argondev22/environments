@@ -1,4 +1,4 @@
-#! /bin/zsh
+#! /bin/env zsh
 
 cp ~/.zshrc ~/.zshrc.bak
 
