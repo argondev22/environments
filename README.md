@@ -1,2 +1,11 @@
 # config
-My Config Files
+
+## zsh
+
+```
+zsh/load.sh
+```
+
+```
+source ~/.zshrc
+```
