@@ -29,6 +29,7 @@ alias cdSw='cd ~/Source/work'
 alias cdDC='cd ~/Documents'
 alias cdDL='cd ~/Downloads'
 
+alias tmpdir='mkdir -p ~/Source/tmp/$(date "+%Y-%m-%d") && cd ~/Source/tmp/$(date "+%Y-%m-%d")'
 
 #####################
 # 補完
