@@ -31,6 +31,8 @@ alias cdDL='cd ~/Downloads'
 
 alias tmpdir='mkdir -p ~/Source/tmp/$(date "+%Y-%m-%d") && cd ~/Source/tmp/$(date "+%Y-%m-%d")'
 
+alias docker-clean='docker image prune -f && docker container prune -f && docker volume prune -f && docker network prune -f'
+
 #####################
 # 補完
 #####################
