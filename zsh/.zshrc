@@ -23,11 +23,9 @@ alias rm='rm -i'
 alias grep='grep --color'
 alias ll='ls -la'
 
-alias cdSd='cd ~/Source/dev'
-alias cdSl='cd ~/Source/lecture'
-alias cdSw='cd ~/Source/work'
-alias cdDC='cd ~/Documents'
-alias cdDL='cd ~/Downloads'
+alias cdS='cd ~/Source'
+alias cdSt='cd ~/Source/tmp'
+alias cdD='cd ~/Downloads'
 
 alias tmpdir='mkdir -p ~/Source/tmp/$(date "+%Y-%m-%d") && cd ~/Source/tmp/$(date "+%Y-%m-%d")'
 
