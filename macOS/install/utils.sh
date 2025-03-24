@@ -4,5 +4,4 @@ brew install pstree
 brew install tree
 brew install watch
 brew install gnu-sed
-brew install kubernetes-cli
 brew install base64
