@@ -1,6 +1,4 @@
-# config
-
-## zsh: 設定の読み込み
+設定の読み込み
 
 ```
 chmod +x zsh/load.sh
