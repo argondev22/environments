@@ -23,6 +23,8 @@ alias rm='rm -i'
 alias grep='grep --color'
 alias ll='ls -la'
 
+alias c='clear'
+
 alias cdS='cd ~/Source'
 alias cdSt='cd ~/Source/tmp'
 alias cdD='cd ~/Downloads'
