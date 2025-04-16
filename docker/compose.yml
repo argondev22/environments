@@ -1,4 +1,5 @@
 services:
   app:
+    command: ["sleep", "infinity"]
     volumes:
       - ./app:/app
