@@ -26,12 +26,9 @@ alias ll='ls -la'
 alias c='clear'
 
 alias cdS='cd ~/Source'
-alias cdSt='cd ~/Source/tmp'
 alias cdD='cd ~/Downloads'
 
 alias tmpdir='mkdir -p ~/Source/tmp/$(date "+%Y-%m-%d") && cd ~/Source/tmp/$(date "+%Y-%m-%d")'
-
-alias docker-clean='docker image prune -f && docker container prune -f && docker volume prune -f && docker network prune -f'
 
 #####################
 # 補完
