@@ -1,0 +1,6 @@
+{
+  "recommendations": [
+    "pkief.material-icon-theme", // Material Icon Theme
+    "ms-vscode-remote.remote-containers" // Dev Containers
+  ]
+}
