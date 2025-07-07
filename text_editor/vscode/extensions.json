@@ -1,6 +1,8 @@
 {
   "recommendations": [
     "pkief.material-icon-theme", // Material Icon Theme
+    "streetsidesoftware.code-spell-checker", // Code Spell Checker
     "ms-vscode-remote.remote-containers" // Dev Containers
+    
   ]
 }
