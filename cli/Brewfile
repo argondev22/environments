@@ -1,7 +1,0 @@
-brew "git"
-brew "jq"
-brew "yq"
-brew "pstree"
-brew "tree"
-brew "watch"
-brew "base64"
