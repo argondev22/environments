@@ -3,7 +3,9 @@
 1. デフォルトのパッケージマネージャーでansibleをインストール
 例: 
 ```sh
+apt install ansible
 brew install ansible
+# など
 ```
 
 2. 下記のコマンドを実行
