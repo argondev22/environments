@@ -3,11 +3,10 @@
   vars:
     common_brew_packages:
       - zsh
-      - git
       - asdf
 
   pre_tasks:
-    - name: OS/アーキ情報を確認（デバッグ）
+    - name: OS/アーキ情報を確認
       debug:
         msg:
           - "system={{ ansible_facts.system }}"
@@ -15,51 +14,60 @@
           - "machine={{ ansible_facts.machine }}"
 
     # ---- Homebrew / zsh のパス計算 ----
-    - name: macOS 用の brew/zsh パス
+    - name: brew/zsh パス（macOS）
       set_fact:
-        brew_prefix: "/opt/homebrew"
         brew_bin: "/opt/homebrew/bin"
         zsh_path: "/opt/homebrew/bin/zsh"
       when:
         - ansible_facts.os_family == "Darwin"
         - ansible_facts.machine in ["arm64", "aarch64"]
-
-    - name: Debian/WSL 用の brew/zsh パス（Linuxbrew）
+      
+    - name: brew/zsh パス（macOS Intel）
       set_fact:
-        brew_prefix: "/home/linuxbrew/.linuxbrew"
+        brew_bin: "/usr/local/bin"
+        zsh_path: "/usr/local/bin/zsh"
+        brew_prefix: "/usr/local"
+      when:
+        - ansible_facts.os_family == "Darwin"
+        - ansible_facts.machine not in ["arm64", "aarch64"]
+
+    - name: brew(Linuxbrew)/zsh パス（Debian/WSL）
+      set_fact:
         brew_bin: "/home/linuxbrew/.linuxbrew/bin"
         zsh_path: "/home/linuxbrew/.linuxbrew/bin/zsh"
       when: ansible_facts.os_family == "Debian"
+    
+    # ---- エラーハンドリング ----
+    - name: サポートされていないOS/アーキテクチャの場合はエラー
+      fail:
+        msg: "未対応のOS/アーキテクチャ: {{ ansible_facts.os_family }}/{{ ansible_facts.machine }}"
+      when: brew_bin == ""
 
   tasks:
     # ---- Homebrew の存在確認・インストール ----
-    - name: brew があるか確認
+    - name: Homebrew がすでにインストールされているか確認
       command: "{{ brew_bin }}/brew --version"
       register: brew_exists
       changed_when: false
       failed_when: false
 
-    - name: Homebrew をインストール（未導入の場合）
+    - name: インストールされていない場合は Homebrew をインストール
       shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
       when: brew_exists.rc != 0
 
-    # WSL/Linuxbrew は PATH 追記が必要なことがある
-    - name: (Linux系のみ) brew の shellenv を ~/.zprofile に追記
+    # ---- Homebrew の PATH を通す ----
+    - name: Homebrew の shellenv を ~/.zprofile に追記
       lineinfile:
         path: "{{ ansible_env.HOME }}/.zprofile"
         create: true
         line: 'eval "$({{ brew_bin }}/brew shellenv)"'
         state: present
-      when: ansible_facts.os_family == "Debian"
 
-    # ---- 必要パッケージの導入（zsh, git, asdf） ----
-    - name: Homebrew パッケージを導入
-      community.general.homebrew:
-        name: "{{ common_brew_packages }}"
-        state: present
-        executable: "{{ brew_bin }}/brew"
+    - name: パッケージをインストール
+      shell: "{{ brew_bin }}/brew install {{ item }}"
+      loop: "{{ common_brew_packages }}"
 
-    # ---- /etc/shells に zsh を登録（必要なら） ----
+    # ---- /etc/shells に zsh を登録 ----
     - name: zsh のパスが /etc/shells に登録済みか確認
       command: "grep -Fx '{{ zsh_path }}' /etc/shells"
       register: shells_has_zsh
@@ -71,10 +79,11 @@
         path: /etc/shells
         line: "{{ zsh_path }}"
         state: present
-      become: true
-      when: shells_has_zsh.rc != 0
+      when: 
+        - shells_has_zsh.rc != 0
+      become: yes
 
-    # ---- 既定シェルを zsh に変更（未変更なら） ----
+    # ---- 既定シェルを zsh に変更 ----
     - name: 現在のログインシェルを取得
       command: /bin/sh -lc 'echo "$SHELL"'
       register: current_shell
@@ -82,16 +91,16 @@
 
     - name: 既定シェルを zsh に変更
       command: "chsh -s {{ zsh_path }} {{ ansible_user_id }}"
-      when: current_shell.stdout != zsh_path
-      # chsh は通常ユーザー権限で可（環境によりパスワード入力が必要な場合あり）
+      when: 
+        - current_shell.stdout != zsh_path
+      become: yes
 
-    # ---- 動作確認（任意） ----
-    - name: asdf / git / zsh の存在確認（デバッグ）
+    # ---- 動作確認 ----
+    - name: 動作確認
       shell: |
         set -e
         {{ brew_bin }}/brew --version | head -n1
         {{ brew_bin }}/zsh --version
-        {{ brew_bin }}/git --version
         {{ brew_bin }}/asdf --version
       register: tool_checks
       changed_when: false
