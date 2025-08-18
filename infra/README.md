@@ -2,13 +2,13 @@
 
 ## クイックスタート
 
-前提条件: gitの準備完了しており、このリポジトリをクローン
+前提条件: gitのセットアップが完了していて、このリポジトリをクローン可能なこと。
 
 1. デフォルトのパッケージマネージャーでansibleをインストール
 例: 
 ```sh
-apt install ansible
-brew install ansible
+apt install -y ansible
+brew install -y ansible
 # など
 ```
 
