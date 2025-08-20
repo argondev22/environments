@@ -1,257 +1,196 @@
+---
 - hosts: local
   gather_facts: yes
   vars:
-    common_brew_packages:
-      - zsh
-      - asdf
-      - chezmoi
-      - age  # age を追加
+    packages: [zsh, asdf, chezmoi, age]
+    
+    paths:
+      home: "{{ ansible_env.HOME }}"
+      chezmoi_config: "{{ ansible_env.HOME }}/.config/chezmoi"
+      age_config: "{{ ansible_env.HOME }}/.config/age"
+      age_key: "{{ ansible_env.HOME }}/.config/age/age.key"
+      chezmoi_source: "{{ ansible_env.HOME }}/.local/share/chezmoi"
+      zprofile: "{{ ansible_env.HOME }}/.zprofile"
 
-    # chezmoi関連の設定変数
-    home_dir: "{{ ansible_env.HOME }}"
-    chezmoi_config_dir: "{{ home_dir }}/.config/chezmoi"
-    age_config_dir: "{{ home_dir }}/.config/age"
-    age_key_file: "{{ age_config_dir }}/age.key"
+    brew_configs:
+      Darwin_arm64: &darwin_arm
+        bin: "/opt/homebrew/bin"
+        prefix: "/opt/homebrew"
+        zsh: "/opt/homebrew/bin/zsh"
+      Darwin_aarch64: *darwin_arm
+      Darwin_x86_64: &darwin_intel
+        bin: "/usr/local/bin"
+        prefix: "/usr/local"
+        zsh: "/usr/local/bin/zsh"
+      Darwin_i386: *darwin_intel
+      Debian_default: &linux_brew
+        bin: "/home/linuxbrew/.linuxbrew/bin"
+        prefix: "/home/linuxbrew/.linuxbrew"
+        zsh: "/home/linuxbrew/.linuxbrew/bin/zsh"
 
   pre_tasks:
-    - name: OS/アーキ情報を確認
+    - name: Display system information
       debug:
-        msg:
-          - "system={{ ansible_facts.system }}"
-          - "os_family={{ ansible_facts.os_family }}"
-          - "machine={{ ansible_facts.machine }}"
+        msg: "Platform: {{ ansible_facts.os_family }}/{{ ansible_facts.machine }}"
 
-    # ---- Homebrew / zsh のパス計算 ----
-    - name: brew/zsh パス（macOS ARM）
+    - name: Set platform-specific configuration
       set_fact:
-        brew_bin: "/opt/homebrew/bin"
-        zsh_path: "/opt/homebrew/bin/zsh"
-        brew_prefix: "/opt/homebrew"
-      when:
-        - ansible_facts.os_family == "Darwin"
-        - ansible_facts.machine in ["arm64", "aarch64"]
-      
-    - name: brew/zsh パス（macOS Intel）
-      set_fact:
-        brew_bin: "/usr/local/bin"
-        zsh_path: "/usr/local/bin/zsh"
-        brew_prefix: "/usr/local"
-      when:
-        - ansible_facts.os_family == "Darwin"
-        - ansible_facts.machine not in ["arm64", "aarch64"]
+        brew: "{{ brew_configs[ansible_facts.os_family + '_' + ansible_facts.machine] | default(brew_configs[ansible_facts.os_family + '_default'], {}) }}"
 
-    - name: brew(Linuxbrew)/zsh パス（Debian/WSL）
-      set_fact:
-        brew_bin: "/home/linuxbrew/.linuxbrew/bin"
-        zsh_path: "/home/linuxbrew/.linuxbrew/bin/zsh"
-        brew_prefix: "/home/linuxbrew/.linuxbrew"
-      when: ansible_facts.os_family == "Debian"
-    
-    # ---- エラーハンドリング ----
-    - name: サポートされていないOS/アーキテクチャの場合はエラー
+    - name: Validate platform support
       fail:
-        msg: "未対応のOS/アーキテクチャ: {{ ansible_facts.os_family }}/{{ ansible_facts.machine }}"
-      when: brew_bin is not defined
+        msg: "Unsupported platform: {{ ansible_facts.os_family }}/{{ ansible_facts.machine }}"
+      when: brew == {}
 
   tasks:
-    # ---- Homebrew の存在確認・インストール ----
-    - name: Homebrew がすでにインストールされているか確認
-      command: "{{ brew_bin }}/brew --version"
-      register: brew_exists
+    - name: Check Homebrew installation
+      command: "{{ brew.bin }}/brew --version"
+      register: brew_check
       changed_when: false
       failed_when: false
 
-    - name: インストールされていない場合は Homebrew をインストール
+    - name: Install Homebrew
       shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-      when: brew_exists.rc != 0
+      when: brew_check.rc != 0
 
-    # ---- Homebrew の PATH を通す ----
-    - name: Homebrew の shellenv を ~/.zprofile に追記
+    - name: Configure shell environment
       lineinfile:
-        path: "{{ home_dir }}/.zprofile"
+        path: "{{ paths.zprofile }}"
         create: true
-        line: 'eval "$({{ brew_bin }}/brew shellenv)"'
+        line: "{{ item }}"
         state: present
+      loop:
+        - 'eval "$({{ brew.bin }}/brew shellenv)"'
+        - 'export AGE_IDENTITIES_FILE="{{ paths.age_key }}"'
 
-    # ---- Homebrew パッケージのインストール ----
-    - name: build-essential をインストール（Debian/WSL）
+    - name: Install system dependencies
       apt:
         name: build-essential
         update_cache: yes
       become: yes
       when: ansible_facts.os_family == "Debian"
 
-    - name: パッケージをインストール
-      shell: "{{ brew_bin }}/brew install {{ item }}"
-      loop: "{{ common_brew_packages }}"
-      register: brew_install_result
-      changed_when: "'already installed' not in brew_install_result.stdout"
-
-    # ---- /etc/shells に zsh を登録 ----
-    - name: zsh のパスが /etc/shells に登録済みか確認
-      command: "grep -Fx '{{ zsh_path }}' /etc/shells"
-      register: shells_has_zsh
+    - name: Check existing packages
+      command: "{{ brew.bin }}/brew list --versions {{ item }}"
+      loop: "{{ packages }}"
+      register: package_check
       changed_when: false
       failed_when: false
 
-    - name: /etc/shells に zsh を追記
-      lineinfile:
-        path: /etc/shells
-        line: "{{ zsh_path }}"
-        state: present
-      when: shells_has_zsh.rc != 0
-      become: yes
+    - name: Install missing packages
+      shell: "{{ brew.bin }}/brew install {{ item.item }}"
+      loop: "{{ package_check.results }}"
+      when: item.rc != 0
 
-    # ---- 既定シェルを zsh に変更 ----
-    - name: 現在のログインシェルを取得
-      command: /bin/sh -lc 'echo "$SHELL"'
-      register: current_shell
-      changed_when: false
-
-    - name: 既定シェルを zsh に変更
-      command: "chsh -s {{ zsh_path }} {{ ansible_user_id }}"
-      when: current_shell.stdout != zsh_path
-      become: yes
-
-    # ==== ここから新規追加：age + chezmoi 設定 ====
-
-    # ---- age/chezmoi 設定ディレクトリの作成 ----
-    - name: age/chezmoi 設定ディレクトリを作成
-      file:
-        path: "{{ item.path }}"
-        state: directory
-        mode: "{{ item.mode }}"
-        owner: "{{ ansible_user_id }}"
-      loop:
-        - { path: "{{ chezmoi_config_dir }}", mode: '0755' }
-        - { path: "{{ age_config_dir }}", mode: '0700' }
-
-    # ---- age 秘密鍵の配置 ----
-    - name: age 秘密鍵を配置
-      copy:
-        content: "{{ age_private_key_content }}"
-        dest: "{{ age_key_file }}"
-        mode: '0600'
-        owner: "{{ ansible_user_id }}"
-      no_log: true
-
-    # ---- age 公開鍵の抽出 ----
-    - name: age 公開鍵を抽出
-      command: "{{ brew_bin }}/age-keygen -y {{ age_key_file }}"
-      register: age_public_key_result
-      changed_when: false
-
-    - name: 抽出された公開鍵を確認
-      debug:
-        msg: "Age public key: {{ age_public_key_result.stdout.strip() }}"
-
-    # ---- chezmoi 設定ファイルの生成 ----
-    - name: chezmoi 設定ファイルを生成
-      template:
-        src: chezmoi.toml.j2
-        dest: "{{ chezmoi_config_dir }}/chezmoi.toml"
-        mode: '0644'
-        owner: "{{ ansible_user_id }}"
-      vars:
-        age_public_key: "{{ age_public_key_result.stdout.strip() }}"
-
-    # ---- AGE_IDENTITIES_FILE 環境変数の設定 ----
-    - name: AGE_IDENTITIES_FILE を ~/.zprofile に追記
-      lineinfile:
-        path: "{{ home_dir }}/.zprofile"
-        create: true
-        line: 'export AGE_IDENTITIES_FILE="{{ age_key_file }}"'
-        state: present
-
-    # ---- chezmoi リポジトリの管理 ----
-    - name: 既存の chezmoi ソースディレクトリを確認
-      stat:
-        path: "{{ home_dir }}/.local/share/chezmoi"
-      register: chezmoi_source_exists
-
-    - name: chezmoi リポジトリを初期化（初回のみ）
-      command: "{{ brew_bin }}/chezmoi init {{ chezmoi_repo_url }}"
-      when: not chezmoi_source_exists.stat.exists
-      environment:
-        AGE_IDENTITIES_FILE: "{{ age_key_file }}"
-
-    - name: 既存リポジトリの更新（2回目以降）
+    - name: Configure zsh as default shell
       block:
-        - name: リモートリポジトリから最新を取得
-          command: git -C "{{ home_dir }}/.local/share/chezmoi" pull
-          register: git_pull_result
+        - name: Register zsh in /etc/shells
+          lineinfile:
+            path: /etc/shells
+            line: "{{ brew.zsh }}"
+            state: present
+          become: yes
+
+        - name: Get current shell
+          command: /bin/sh -lc 'echo "$SHELL"'
+          register: current_shell
+          changed_when: false
+
+        - name: Set default shell to zsh
+          user:
+            name: "{{ ansible_user_id }}"
+            shell: "{{ brew.zsh }}"
+          become: yes
+          when: current_shell.stdout != brew.zsh
+
+    - name: Setup encryption and dotfiles management
+      block:
+        - name: Create configuration directories
+          file:
+            path: "{{ item.path }}"
+            state: directory
+            mode: "{{ item.mode }}"
+          loop:
+            - { path: "{{ paths.chezmoi_config }}", mode: '0755' }
+            - { path: "{{ paths.age_config }}", mode: '0700' }
+
+        - name: Deploy age private key
+          copy:
+            content: "{{ age_private_key_content }}"
+            dest: "{{ paths.age_key }}"
+            mode: '0600'
+          no_log: true
+
+        - name: Extract age public key
+          command: "{{ brew.bin }}/age-keygen -y {{ paths.age_key }}"
+          register: age_public_key
+          changed_when: false
+
+        - name: Generate chezmoi configuration
+          template:
+            src: chezmoi.toml.j2
+            dest: "{{ paths.chezmoi_config }}/chezmoi.toml"
+            mode: '0644'
+          vars:
+            age_public_key: "{{ age_public_key.stdout.strip() }}"
+
+        - name: Check existing repository
+          stat:
+            path: "{{ paths.chezmoi_source }}"
+          register: repo_exists
+
+        - name: Initialize chezmoi repository
+          command: "{{ brew.bin }}/chezmoi init {{ chezmoi_repo_url }}"
+          when: not repo_exists.stat.exists
+
+        - name: Update existing repository
+          command: "git -C {{ paths.chezmoi_source }} pull"
+          register: git_pull
+          changed_when: "'Already up to date.' not in git_pull.stdout"
+          when: repo_exists.stat.exists
+
+        - name: Verify configuration
+          command: "{{ brew.bin }}/chezmoi doctor"
+          register: doctor_result
+          changed_when: false
+
+        - name: Preview changes
+          command: "{{ brew.bin }}/chezmoi diff"
+          register: diff_result
+          changed_when: false
           failed_when: false
 
-        - name: Git pull の結果を表示
+        - name: Display pending changes
           debug:
-            msg: "{{ git_pull_result.stdout_lines }}"
-          when: git_pull_result.rc == 0
-      when: chezmoi_source_exists.stat.exists
+            msg: "{{ diff_result.stdout_lines }}"
+          when: diff_result.stdout != ""
 
-    # ---- chezmoi 設定確認 ----
-    - name: chezmoi の設定状況を確認
-      command: "{{ brew_bin }}/chezmoi doctor"
-      register: chezmoi_doctor_result
-      changed_when: false
+        - name: Apply dotfiles
+          command: "{{ brew.bin }}/chezmoi apply -v"
+          register: apply_result
+
+        - name: Get final status
+          command: "{{ brew.bin }}/chezmoi status"
+          register: final_status
+          changed_when: false
+
       environment:
-        AGE_IDENTITIES_FILE: "{{ age_key_file }}"
+        AGE_IDENTITIES_FILE: "{{ paths.age_key }}"
 
-    - name: chezmoi doctor の結果を表示
-      debug:
-        msg: "{{ chezmoi_doctor_result.stdout_lines }}"
+    - name: Verify installation
+      block:
+        - name: Check tool versions
+          command: "{{ brew.bin }}/{{ item }} --version"
+          loop: "{{ packages }}"
+          register: versions
+          changed_when: false
+          failed_when: false
 
-    # ---- 暗号化ファイルを含む dotfiles の適用 ----
-    - name: chezmoi の差分を確認
-      command: "{{ brew_bin }}/chezmoi diff"
-      register: chezmoi_diff_result
-      changed_when: false
-      failed_when: false
-      environment:
-        AGE_IDENTITIES_FILE: "{{ age_key_file }}"
-
-    - name: 適用される変更を表示
-      debug:
-        msg: "{{ chezmoi_diff_result.stdout_lines }}"
-      when: chezmoi_diff_result.stdout != ""
-
-    - name: chezmoi で dotfiles を適用（暗号化ファイル含む）
-      command: "{{ brew_bin }}/chezmoi apply -v"
-      register: chezmoi_apply_result
-      environment:
-        AGE_IDENTITIES_FILE: "{{ age_key_file }}"
-
-    - name: chezmoi apply の結果を表示
-      debug:
-        msg: "{{ chezmoi_apply_result.stdout_lines }}"
-
-    # ---- 最終確認 ----
-    - name: chezmoi の最終状態を確認
-      command: "{{ brew_bin }}/chezmoi status"
-      register: chezmoi_status_result
-      changed_when: false
-      environment:
-        AGE_IDENTITIES_FILE: "{{ age_key_file }}"
-
-    - name: ツールのバージョン確認
-      shell: "{{ brew_bin }}/{{ item }} --version"
-      loop: "{{ common_brew_packages }}"
-      register: tool_checks
-      changed_when: false
-      no_log: true
-    
-    - name: インストールされたツールのバージョン情報を表示
-      debug:  # debugj → debug に修正
-        msg: "{{ item.item }}: {{ item.stdout if item.rc == 0 else 'Not available' }}"
-      loop: "{{ tool_checks.results }}"
-
-    # ---- セットアップ完了メッセージ ----
-    - name: セットアップ完了メッセージ
-      debug:
-        msg:
-          - "=== chezmoi セットアップ完了 ==="
-          - "Age encryption: 有効"
-          - "設定ファイル: {{ chezmoi_config_dir }}/chezmoi.toml"
-          - "秘密鍵: {{ age_key_file }}"
-          - "ステータス: {{ chezmoi_status_result.stdout_lines | join(', ') }}"
-          - ""
-          - "暗号化されたdotファイルも含めて適用完了しました。"
+        - name: Display setup summary
+          debug:
+            msg:
+              - "=== Setup Complete ==="
+              - "Encryption: Enabled (age)"
+              - "Configuration: {{ paths.chezmoi_config }}/chezmoi.toml"
+              - "Status: {{ final_status.stdout_lines | join(', ') if final_status.stdout_lines else 'Clean' }}"
+              - "Tools: {{ versions.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list | join(', ') }}"
