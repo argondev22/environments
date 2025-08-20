@@ -128,7 +128,7 @@
 
         - name: Generate chezmoi configuration
           template:
-            src: chezmoi.toml.j2
+            src: templates/chezmoi.toml.j2
             dest: "{{ paths.chezmoi_config }}/chezmoi.toml"
             mode: '0644'
           vars:
