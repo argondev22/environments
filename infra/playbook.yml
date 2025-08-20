@@ -184,19 +184,18 @@
 
       environment:
         AGE_IDENTITIES_FILE: "{{ paths.age_key }}"
+    
+    - name: Check .tool-versions file exists
+      stat:
+        path: "{{ paths.tool_versions }}"
+      register: tool_versions_file
 
     - name: Setup asdf version management
       block:
-        - name: Check .tool-versions file exists
-          stat:
-            path: "{{ paths.tool_versions }}"
-          register: tool_versions_file
-
         - name: Read .tool-versions content
           slurp:
             src: "{{ paths.tool_versions }}"
           register: tool_versions_raw
-          when: tool_versions_file.stat.exists
 
         - name: Parse .tool-versions content
           set_fact:
@@ -208,9 +207,6 @@
                 | map('split')
                 | list
               }}
-          when: 
-            - tool_versions_file.stat.exists
-            - tool_versions_raw.content is defined
 
         - name: Display detected tools
           debug:
@@ -222,7 +218,6 @@
           register: installed_plugins
           changed_when: false
           failed_when: false
-          when: asdf_tools is defined
 
         - name: Install missing asdf plugins
           shell: '. "{{ asdf_sh }}" && asdf plugin add {{ item[0] }}'
@@ -263,7 +258,12 @@
             - asdf_tools is defined
             - asdf_current.stdout_lines is defined
 
-      when: tool_versions_file.stat.exists
+      when: tool_versions_file.stat.exists  # 既に定義済みの変数を参照
+
+    - name: Display skip message
+      debug:
+        msg: "Skipping asdf setup: .tool-versions file not found at {{ paths.tool_versions }}"
+      when: not tool_versions_file.stat.exists
 
     - name: Verify installation
       block:
