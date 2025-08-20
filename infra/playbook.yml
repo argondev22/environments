@@ -11,6 +11,7 @@
       age_key: "{{ ansible_env.HOME }}/.config/age/age.key"
       chezmoi_source: "{{ ansible_env.HOME }}/.local/share/chezmoi"
       zprofile: "{{ ansible_env.HOME }}/.zprofile"
+      tool_versions: "{{ ansible_env.HOME }}/.tool-versions"
 
     brew_configs:
       Darwin_arm64: &darwin_arm
@@ -42,6 +43,13 @@
         msg: "Unsupported platform: {{ ansible_facts.os_family }}/{{ ansible_facts.machine }}"
       when: brew == {}
 
+    - name: Set asdf configuration
+      set_fact:
+        asdf_sh: "{{ brew.prefix }}/opt/asdf/libexec/asdf.sh"
+        asdf_env:
+          ASDF_DIR: "{{ brew.prefix }}/opt/asdf/libexec"
+          PATH: "{{ ansible_env.PATH }}:{{ brew.prefix }}/opt/asdf/shims:{{ brew.prefix }}/opt/asdf/bin"
+
   tasks:
     - name: Check Homebrew installation
       command: "{{ brew.bin }}/brew --version"
@@ -62,13 +70,45 @@
       loop:
         - 'eval "$({{ brew.bin }}/brew shellenv)"'
         - 'export AGE_IDENTITIES_FILE="{{ paths.age_key }}"'
+        - 'export ASDF_DIR="{{ brew.prefix }}/opt/asdf/libexec"'
+        - '. {{ asdf_sh }}'
 
-    - name: Install system dependencies
-      apt:
-        name: build-essential
-        update_cache: yes
-      become: yes
-      when: ansible_facts.os_family == "Debian"
+    - name: Install essential system dependencies
+      block:
+        - name: Install core dependencies (Debian/Ubuntu)
+          apt:
+            name: 
+              # 基本ツール
+              - build-essential
+              - unzip
+              - curl
+              - wget
+              - git
+              - gnupg
+              - dirmngr
+              - ca-certificates
+              - software-properties-common
+              # 開発用ライブラリ（Python/Ruby等で必要）
+              - libssl-dev
+              - libffi-dev
+              - zlib1g-dev
+              - libbz2-dev
+              - libreadline-dev
+              - libsqlite3-dev
+              - xz-utils
+            update_cache: yes
+            state: present
+          become: yes
+          when: ansible_facts.os_family == "Debian"
+
+        - name: Install core dependencies (macOS)
+          community.general.homebrew:
+            name:
+              - unzip
+              - gnupg
+            state: present
+          when: ansible_facts.os_family == "Darwin"
+
 
     - name: Check existing packages
       command: "{{ brew.bin }}/brew list --versions {{ item }}"
@@ -178,6 +218,98 @@
 
       environment:
         AGE_IDENTITIES_FILE: "{{ paths.age_key }}"
+    
+    - name: Check .tool-versions file exists
+      stat:
+        path: "{{ paths.tool_versions }}"
+      register: tool_versions_file
+
+    - name: Setup asdf version management
+      block:
+        - name: Read .tool-versions content
+          slurp:
+            src: "{{ paths.tool_versions }}"
+          register: tool_versions_raw
+
+        - name: Parse .tool-versions content
+          set_fact:
+            asdf_tools: >-
+              {{
+                (tool_versions_raw.content | b64decode).splitlines()
+                | map('trim')
+                | reject('match', '^(#|$)')
+                | map('split')
+                | list
+              }}
+
+        - name: Display detected tools
+          debug:
+            msg: "Detected asdf tools: {{ asdf_tools | map('join', ' ') | list | join(', ') }}"
+          when: asdf_tools is defined and asdf_tools | length > 0
+
+        - name: Get currently installed plugins
+          shell: '. "{{ asdf_sh }}" && asdf plugin list'
+          register: installed_plugins
+          changed_when: false
+          failed_when: false
+          args:
+            executable: /bin/bash
+
+        - name: Install missing asdf plugins
+          shell: '. "{{ asdf_sh }}" && asdf plugin add {{ item[0] }}'
+          loop: "{{ asdf_tools }}"
+          when: 
+            - asdf_tools is defined
+            - item[0] not in (installed_plugins.stdout_lines | default([]))
+          failed_when: false
+          args:
+            executable: /bin/bash
+
+        - name: Handle nodejs plugin requirements
+          shell: '. "{{ asdf_sh }}" && bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring'
+          when: 
+            - asdf_tools is defined
+            - asdf_tools | map('first') | list | select('match', 'nodejs') | list | length > 0
+          failed_when: false
+          changed_when: false
+          args:
+            executable: /bin/bash
+
+        - name: Install tools from .tool-versions
+          shell: '. "{{ asdf_sh }}" && cd "{{ paths.home }}" && asdf install'
+          when: asdf_tools is defined
+          args:
+            executable: /bin/bash
+
+        - name: Reshim asdf executables
+          shell: '. "{{ asdf_sh }}" && asdf reshim'
+          when: asdf_tools is defined
+          args:
+            executable: /bin/bash
+
+        - name: Verify asdf current versions
+          shell: '. "{{ asdf_sh }}" && asdf current'
+          register: asdf_current
+          changed_when: false
+          when: asdf_tools is defined
+          args:
+            executable: /bin/bash
+
+        - name: Display installed versions
+          debug:
+            msg: "{{ asdf_current.stdout_lines }}"
+          when: 
+            - asdf_tools is defined
+            - asdf_current.stdout_lines is defined
+
+      environment: "{{ asdf_env }}"
+      when: tool_versions_file.stat.exists
+
+
+    - name: Display skip message
+      debug:
+        msg: "Skipping asdf setup: .tool-versions file not found at {{ paths.tool_versions }}"
+      when: not tool_versions_file.stat.exists
 
     - name: Verify installation
       block:
@@ -196,3 +328,4 @@
               - "Configuration: {{ paths.chezmoi_config }}/chezmoi.toml"
               - "Status: {{ final_status.stdout_lines | join(', ') if final_status.stdout_lines else 'Clean' }}"
               - "Tools: {{ versions.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list | join(', ') }}"
+              - "ASDF Tools: {{ asdf_tools | map('join', ' ') | list | join(', ') if asdf_tools is defined else 'None detected' }}"
