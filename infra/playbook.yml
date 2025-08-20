@@ -14,7 +14,7 @@
     age_key_file: "{{ age_config_dir }}/age.key"
     
     # あなたのdotfilesリポジトリURL（必ず変更してください）
-    chezmoi_repo_url: "https://github.com/your-username/dotfiles.git"
+    chezmoi_repo_url: "git@github.com:argon-dev22/dotfiles.git"
 
   pre_tasks:
     - name: OS/アーキ情報を確認
