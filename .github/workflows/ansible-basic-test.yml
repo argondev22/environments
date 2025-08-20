@@ -1,0 +1,95 @@
+name: Ansible Playbook Basic Test
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'playbook.yml'
+      - 'templates/**'
+      - 'group_vars/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  ANSIBLE_HOST_KEY_CHECKING: false
+  ANSIBLE_STDOUT_CALLBACK: yaml
+
+jobs:
+  test:
+    name: Test Playbook
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible
+
+      - name: Install platform dependencies
+        run: |
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            sudo apt update
+            sudo apt install -y age unzip curl git
+          else
+            brew install age
+          fi
+
+      - name: Create test inventory
+        run: |
+          cat > inventory.ini << EOF
+          [local]
+          localhost ansible_connection=local
+          EOF
+
+      - name: Generate test configuration
+        run: |
+          # テスト用のダミーage鍵を生成
+          age-keygen -o /tmp/test_age.key
+          test_key_content=$(cat /tmp/test_age.key)
+          
+          mkdir -p group_vars
+          cat > group_vars/all.yml << EOF
+          # テスト用設定 - 本番では使用しないでください
+          chezmoi_repo_url: "https://github.com/your-username/dotfiles.git"
+          age_private_key_content: |
+          ${test_key_content}
+          EOF
+
+      - name: Create test .tool-versions
+        run: |
+          cat > ~/.tool-versions << EOF
+          nodejs 18.19.0
+          python 3.11.7
+          EOF
+
+      - name: Run Ansible syntax check
+        run: ansible-playbook --syntax-check -i inventory.ini playbook.yml
+
+      - name: Run playbook in check mode
+        run: |
+          ansible-playbook -i inventory.ini playbook.yml --check --diff
+        env:
+          SSH_AUTH_SOCK: ""
+
+      - name: Display system information
+        run: |
+          echo "=== Test completed on ${{ matrix.os }} ==="
+          echo "Platform: $(uname -a)"
+          if command -v brew >/dev/null 2>&1; then
+            echo "Homebrew: $(brew --version | head -1)"
+          fi
