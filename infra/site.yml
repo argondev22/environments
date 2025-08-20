@@ -4,6 +4,7 @@
     common_brew_packages:
       - zsh
       - asdf
+      - chezmoi
 
   pre_tasks:
     - name: OS/アーキ情報を確認
@@ -63,6 +64,14 @@
         line: 'eval "$({{ brew_bin }}/brew shellenv)"'
         state: present
 
+    # ---- Homebrew パッケージのインストール ----
+    - name: build-essential をインストール（Debian/WSL）
+      apt:
+        name: build-essential
+        update_cache: yes
+      become: yes
+      when: ansible_facts.os_family == "Debian"
+
     - name: パッケージをインストール
       shell: "{{ brew_bin }}/brew install {{ item }}"
       loop: "{{ common_brew_packages }}"
@@ -96,14 +105,23 @@
       become: yes
 
     # ---- 動作確認 ----
-    - name: 動作確認
-      shell: |
-        set -e
-        {{ brew_bin }}/brew --version | head -n1
-        {{ brew_bin }}/zsh --version
-        {{ brew_bin }}/asdf --version
+    - name: ツールのバージョン確認
+      shell: "{{ brew_bin }}/{{ item }} --version"
+      loop: "{{ common_brew_packages }}"
       register: tool_checks
       changed_when: false
+      no_log: true
+    
+    - name: インストールされたツールのバージョン情報を表示
+      debugj:
+        msg: "{{ item.item }}: {{ item.stdout }}"
+      loop: "{{ tool_checks.results }}"
+      when: item.rc == 0
+    
+    # ---- dotfiles のセットアップ ----
+    - name: ホームディレクトリの確認
+      debug:
+        msg: "{{ ansible_facts.user_dir }}"
 
-    - debug:
-        var: tool_checks.stdout_lines
+    - name: chezmoi のセットアップ
+      command: "{{ brew_bin }}/chezmoi init --source ../dotfiles --apply"
