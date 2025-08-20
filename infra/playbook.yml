@@ -46,6 +46,9 @@
     - name: Set asdf configuration
       set_fact:
         asdf_sh: "{{ brew.prefix }}/opt/asdf/libexec/asdf.sh"
+        asdf_env:
+          ASDF_DIR: "{{ brew.prefix }}/opt/asdf/libexec"
+          PATH: "{{ ansible_env.PATH }}:{{ brew.prefix }}/opt/asdf/shims:{{ brew.prefix }}/opt/asdf/bin"
 
   tasks:
     - name: Check Homebrew installation
@@ -67,6 +70,7 @@
       loop:
         - 'eval "$({{ brew.bin }}/brew shellenv)"'
         - 'export AGE_IDENTITIES_FILE="{{ paths.age_key }}"'
+        - 'export ASDF_DIR="{{ brew.prefix }}/opt/asdf/libexec"'
         - '. {{ asdf_sh }}'
 
     - name: Install system dependencies
@@ -218,6 +222,8 @@
           register: installed_plugins
           changed_when: false
           failed_when: false
+          args:
+            executable: /bin/bash
 
         - name: Install missing asdf plugins
           shell: '. "{{ asdf_sh }}" && asdf plugin add {{ item[0] }}'
@@ -225,8 +231,9 @@
           when: 
             - asdf_tools is defined
             - item[0] not in (installed_plugins.stdout_lines | default([]))
-          register: plugin_results
           failed_when: false
+          args:
+            executable: /bin/bash
 
         - name: Handle nodejs plugin requirements
           shell: '. "{{ asdf_sh }}" && bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring'
@@ -235,21 +242,28 @@
             - asdf_tools | map('first') | list | select('match', 'nodejs') | list | length > 0
           failed_when: false
           changed_when: false
+          args:
+            executable: /bin/bash
 
         - name: Install tools from .tool-versions
           shell: '. "{{ asdf_sh }}" && cd "{{ paths.home }}" && asdf install'
           when: asdf_tools is defined
-          register: install_result
+          args:
+            executable: /bin/bash
 
         - name: Reshim asdf executables
           shell: '. "{{ asdf_sh }}" && asdf reshim'
           when: asdf_tools is defined
+          args:
+            executable: /bin/bash
 
         - name: Verify asdf current versions
           shell: '. "{{ asdf_sh }}" && asdf current'
           register: asdf_current
           changed_when: false
           when: asdf_tools is defined
+          args:
+            executable: /bin/bash
 
         - name: Display installed versions
           debug:
@@ -258,7 +272,9 @@
             - asdf_tools is defined
             - asdf_current.stdout_lines is defined
 
-      when: tool_versions_file.stat.exists  # 既に定義済みの変数を参照
+      environment: "{{ asdf_env }}"
+      when: tool_versions_file.stat.exists
+
 
     - name: Display skip message
       debug:
