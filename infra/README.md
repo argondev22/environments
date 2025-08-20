@@ -15,5 +15,5 @@ brew install -y ansible
 2. 下記のコマンドを実行
 ```sh
 ansible-galaxy collection install community.general && \n
-ansible-playbook -i inventory.ini site.yml
+ansible-playbook -i inventory.ini playbook.yml --ask-vault-pass
 ```
