@@ -11,6 +11,7 @@
       age_key: "{{ ansible_env.HOME }}/.config/age/age.key"
       chezmoi_source: "{{ ansible_env.HOME }}/.local/share/chezmoi"
       zprofile: "{{ ansible_env.HOME }}/.zprofile"
+      tool_versions: "{{ ansible_env.HOME }}/.tool-versions"
 
     brew_configs:
       Darwin_arm64: &darwin_arm
@@ -42,6 +43,10 @@
         msg: "Unsupported platform: {{ ansible_facts.os_family }}/{{ ansible_facts.machine }}"
       when: brew == {}
 
+    - name: Set asdf configuration
+      set_fact:
+        asdf_sh: "{{ brew.prefix }}/opt/asdf/libexec/asdf.sh"
+
   tasks:
     - name: Check Homebrew installation
       command: "{{ brew.bin }}/brew --version"
@@ -62,6 +67,7 @@
       loop:
         - 'eval "$({{ brew.bin }}/brew shellenv)"'
         - 'export AGE_IDENTITIES_FILE="{{ paths.age_key }}"'
+        - '. {{ asdf_sh }}'
 
     - name: Install system dependencies
       apt:
@@ -179,6 +185,86 @@
       environment:
         AGE_IDENTITIES_FILE: "{{ paths.age_key }}"
 
+    - name: Setup asdf version management
+      block:
+        - name: Check .tool-versions file exists
+          stat:
+            path: "{{ paths.tool_versions }}"
+          register: tool_versions_file
+
+        - name: Read .tool-versions content
+          slurp:
+            src: "{{ paths.tool_versions }}"
+          register: tool_versions_raw
+          when: tool_versions_file.stat.exists
+
+        - name: Parse .tool-versions content
+          set_fact:
+            asdf_tools: >-
+              {{
+                (tool_versions_raw.content | b64decode).splitlines()
+                | map('trim')
+                | reject('match', '^(#|$)')
+                | map('split')
+                | list
+              }}
+          when: 
+            - tool_versions_file.stat.exists
+            - tool_versions_raw.content is defined
+
+        - name: Display detected tools
+          debug:
+            msg: "Detected asdf tools: {{ asdf_tools | map('join', ' ') | list | join(', ') }}"
+          when: asdf_tools is defined and asdf_tools | length > 0
+
+        - name: Get currently installed plugins
+          shell: '. "{{ asdf_sh }}" && asdf plugin list'
+          register: installed_plugins
+          changed_when: false
+          failed_when: false
+          when: asdf_tools is defined
+
+        - name: Install missing asdf plugins
+          shell: '. "{{ asdf_sh }}" && asdf plugin add {{ item[0] }}'
+          loop: "{{ asdf_tools }}"
+          when: 
+            - asdf_tools is defined
+            - item[0] not in (installed_plugins.stdout_lines | default([]))
+          register: plugin_results
+          failed_when: false
+
+        - name: Handle nodejs plugin requirements
+          shell: '. "{{ asdf_sh }}" && bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring'
+          when: 
+            - asdf_tools is defined
+            - asdf_tools | map('first') | list | select('match', 'nodejs') | list | length > 0
+          failed_when: false
+          changed_when: false
+
+        - name: Install tools from .tool-versions
+          shell: '. "{{ asdf_sh }}" && cd "{{ paths.home }}" && asdf install'
+          when: asdf_tools is defined
+          register: install_result
+
+        - name: Reshim asdf executables
+          shell: '. "{{ asdf_sh }}" && asdf reshim'
+          when: asdf_tools is defined
+
+        - name: Verify asdf current versions
+          shell: '. "{{ asdf_sh }}" && asdf current'
+          register: asdf_current
+          changed_when: false
+          when: asdf_tools is defined
+
+        - name: Display installed versions
+          debug:
+            msg: "{{ asdf_current.stdout_lines }}"
+          when: 
+            - asdf_tools is defined
+            - asdf_current.stdout_lines is defined
+
+      when: tool_versions_file.stat.exists
+
     - name: Verify installation
       block:
         - name: Check tool versions
@@ -196,3 +282,4 @@
               - "Configuration: {{ paths.chezmoi_config }}/chezmoi.toml"
               - "Status: {{ final_status.stdout_lines | join(', ') if final_status.stdout_lines else 'Clean' }}"
               - "Tools: {{ versions.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list | join(', ') }}"
+              - "ASDF Tools: {{ asdf_tools | map('join', ' ') | list | join(', ') if asdf_tools is defined else 'None detected' }}"
