@@ -126,6 +126,14 @@
           register: age_public_key
           changed_when: false
 
+        # デバッグタスクの追加
+        - name: Debug template variables
+          debug:
+            msg:
+              - "paths.age_key: {{ paths.age_key }}"
+              - "age_public_key: {{ age_public_key.stdout.strip() }}"
+              - "brew.prefix: {{ brew.prefix }}"
+
         - name: Generate chezmoi configuration
           template:
             src: chezmoi.toml.j2
