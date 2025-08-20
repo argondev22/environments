@@ -2,13 +2,11 @@ name: Ansible Playbook Basic Test
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, feature/*]
     paths:
-      - 'playbook.yml'
-      - 'templates/**'
-      - 'group_vars/**'
+      - 'infra/**'
   pull_request:
-    branches: [main]
+    branches: [main, feature/*]
   workflow_dispatch:
 
 env:
