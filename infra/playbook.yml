@@ -141,7 +141,8 @@
             mode: '0644'
           vars:
             age_public_key: "{{ age_public_key.stdout.strip() }}"
-            paths: "{{ paths }}"
+            age_key_file: "{{ paths.age_key }}"
+            brew_prefix: "{{ brew.prefix }}"
 
         - name: Check existing repository
           stat:

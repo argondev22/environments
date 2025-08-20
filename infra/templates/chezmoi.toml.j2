@@ -1,23 +1,21 @@
-# chezmoi configuration file
 encryption = "age"
 
 [age]
-    identity = "{{ age_key_file }}"
-    recipients = ["{{ age_public_key }}"]
+identity = "{{ age_key_file }}"
+recipients = ["{{ age_public_key }}"]
 
 [data]
-    email = "{{ ansible_user_id }}@{{ ansible_hostname }}"
-    hostname = "{{ ansible_hostname }}"
-    os = "{{ ansible_facts.os_family | lower }}"
-    arch = "{{ ansible_facts.machine }}"
-    user = "{{ ansible_user_id }}"
-
+email = "{{ ansible_user_id }}@{{ ansible_hostname }}"
+hostname = "{{ ansible_hostname }}"
+os = "{{ ansible_facts.os_family | lower }}"
+arch = "{{ ansible_facts.machine }}"
+user = "{{ ansible_user_id }}"
+brew_prefix = "{{ brew_prefix }}"
+is_darwin = {{ (ansible_facts.os_family == "Darwin") | lower }}
+is_linux = {{ (ansible_facts.os_family != "Darwin") | lower }}
 {% if ansible_facts.os_family == "Darwin" %}
-[data.darwin]
-    brew_prefix = "{{ brew_prefix }}"
-    is_arm = {{ (ansible_facts.machine in ["arm64", "aarch64"]) | lower }}
+is_arm = {{ (ansible_facts.machine in ["arm64", "aarch64"]) | lower }}
 {% elif ansible_facts.os_family == "Debian" %}
-[data.debian]
-    distribution = "{{ ansible_facts.distribution }}"
-    is_wsl = {{ (ansible_kernel is search("microsoft|WSL") | default(false)) | lower }}
+is_wsl = {{ (ansible_kernel is search("microsoft|WSL") | default(false)) | lower }}
+distribution = "{{ ansible_facts.distribution | lower }}"
 {% endif %}
