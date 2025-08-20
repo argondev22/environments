@@ -73,12 +73,42 @@
         - 'export ASDF_DIR="{{ brew.prefix }}/opt/asdf/libexec"'
         - '. {{ asdf_sh }}'
 
-    - name: Install system dependencies
-      apt:
-        name: build-essential
-        update_cache: yes
-      become: yes
-      when: ansible_facts.os_family == "Debian"
+    - name: Install essential system dependencies
+      block:
+        - name: Install core dependencies (Debian/Ubuntu)
+          apt:
+            name: 
+              # 基本ツール
+              - build-essential
+              - unzip
+              - curl
+              - wget
+              - git
+              - gnupg
+              - dirmngr
+              - ca-certificates
+              - software-properties-common
+              # 開発用ライブラリ（Python/Ruby等で必要）
+              - libssl-dev
+              - libffi-dev
+              - zlib1g-dev
+              - libbz2-dev
+              - libreadline-dev
+              - libsqlite3-dev
+              - xz-utils
+            update_cache: yes
+            state: present
+          become: yes
+          when: ansible_facts.os_family == "Debian"
+
+        - name: Install core dependencies (macOS)
+          community.general.homebrew:
+            name:
+              - unzip
+              - gnupg
+            state: present
+          when: ansible_facts.os_family == "Darwin"
+
 
     - name: Check existing packages
       command: "{{ brew.bin }}/brew list --versions {{ item }}"
