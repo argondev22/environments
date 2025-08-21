@@ -6,7 +6,7 @@ on:
     paths:
       - 'infra/**'
   pull_request:
-    branches: [main, feature/*, fix/*, refactor/*]
+    branches: [main]
   workflow_dispatch:
 
 env:
