@@ -67,19 +67,12 @@ jobs:
           ${test_key_content}
           EOF
 
-      - name: Create test .tool-versions
-        run: |
-          cat > ~/.tool-versions << EOF
-          nodejs 18.19.0
-          python 3.11.7
-          EOF
-
       - name: Run Ansible syntax check
-        run: ansible-playbook --syntax-check -i inventory.ini playbook.yml
+        run: ansible-playbook --syntax-check -i infra/inventory.ini infra/playbook.yml --ask-vault-pass
 
       - name: Run playbook in check mode
         run: |
-          ansible-playbook -i inventory.ini playbook.yml --check --diff
+          ansible-playbook -i infra/inventory.ini infra/playbook.yml --check --diff --ask-vault-pass
         env:
           SSH_AUTH_SOCK: ""
 
