@@ -53,11 +53,3 @@ jobs:
         env:
           SSH_AUTH_SOCK: ""
         working-directory: infra
-
-      - name: Display system information
-        run: |
-          echo "=== Test completed on ${{ matrix.os }} ==="
-          echo "Platform: $(uname -a)"
-          if command -v brew >/dev/null 2>&1; then
-            echo "Homebrew: $(brew --version | head -1)"
-          fi
