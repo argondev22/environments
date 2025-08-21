@@ -1,0 +1,19 @@
+INVENTORY=inventory.ini
+VAULT_FILE=.vault_pass
+
+.PHONY: check apply syntax clean
+
+syntax:
+	ansible-playbook --syntax-check -i $(INVENTORY) playbook.yml
+
+check:
+	ansible-playbook -i $(INVENTORY) playbook.yml --check --diff --vault-password-file $(VAULT_FILE)
+
+apply:
+	ansible-playbook -i $(INVENTORY) playbook.yml --vault-password-file $(VAULT_FILE)
+
+debug:
+	ansible-playbook -i $(INVENTORY) playbook.yml --check --diff -vvv --vault-password-file $(VAULT_FILE)
+
+clean:
+	rm -f .vault_pass
