@@ -11,6 +11,7 @@
       age_key: "{{ ansible_env.HOME }}/.config/age/age.key"
       chezmoi_source: "{{ ansible_env.HOME }}/.local/share/chezmoi"
       zprofile: "{{ ansible_env.HOME }}/.zprofile"
+      zshrc: "{{ ansible_env.HOME }}/.zshrc"
       tool_versions: "{{ ansible_env.HOME }}/.tool-versions"
 
     brew_configs:
@@ -143,6 +144,34 @@
           become: yes
           when: current_shell.stdout != brew.zsh
 
+    - name: Configure zsh as default shell
+      block:
+        - name: Install zplug plugin manager
+          git:
+            repo: "https://github.com/zplug/zplug"
+            dest: "{{ paths.home }}/.zplug"
+            version: "master"
+            update: no
+
+        - name: Register zsh in /etc/shells
+          lineinfile:
+            path: /etc/shells
+            line: "{{ brew.zsh }}"
+            state: present
+          become: yes
+
+        - name: Get current shell
+          command: /bin/sh -lc 'echo "$SHELL"'
+          register: current_shell
+          changed_when: false
+
+        - name: Set default shell to zsh
+          user:
+            name: "{{ ansible_user_id }}"
+            shell: "{{ brew.zsh }}"
+          become: yes
+          when: current_shell.stdout != brew.zsh
+
     - name: Setup encryption and dotfiles management
       block:
         - name: Create configuration directories
@@ -207,6 +236,26 @@
             msg: "{{ diff_result.stdout_lines }}"
           when: diff_result.stdout != ""
 
+        - name: Ensure zshrc compatibility before chezmoi apply
+          block:
+            - name: Check if current .zshrc has compatibility issues
+              shell: "grep -q '\\$HOME/\\.asdf/asdf\\.sh' {{ paths.zshrc }} || grep -q 'source.*\\.asdf/asdf\\.sh' {{ paths.zshrc }}"
+              register: has_asdf_issues
+              failed_when: false
+              changed_when: false
+
+            - name: Create temporary compatibility fixes
+              replace:
+                path: "{{ paths.zshrc }}"
+                regexp: "{{ item.pattern }}"
+                replace: "{{ item.replacement }}"
+              loop:
+                - pattern: '(\.|source)\s+\$HOME/\.asdf/asdf\.sh'
+                  replacement: '. {{ asdf_sh }}'
+                - pattern: 'source\s+"\$HOME/\.asdf/completions/asdf\.bash"'
+                  replacement: '# Temporarily disabled - will be fixed by template'
+              when: has_asdf_issues.rc == 0
+
         - name: Apply dotfiles
           command: "{{ brew.bin }}/chezmoi apply -v"
           register: apply_result
@@ -218,6 +267,26 @@
 
       environment:
         AGE_IDENTITIES_FILE: "{{ paths.age_key }}"
+
+    - name: Verify zsh configuration
+      block:
+        - name: Test zsh configuration syntax
+          shell: "{{ brew.zsh }} -n {{ paths.zshrc }}"
+          register: zsh_syntax_check
+          failed_when: false
+
+        - name: Test interactive zsh loading
+          shell: "timeout 10 {{ brew.zsh }} -i -c 'echo ZSH_LOADED_OK && exit 0'"
+          register: zsh_interactive_test
+          failed_when: false
+
+        - name: Display verification results
+          debug:
+            msg:
+              - "=== ZSH Configuration Verification ==="
+              - "Syntax Check: {{ 'PASSED' if zsh_syntax_check.rc == 0 else 'FAILED' }}"
+              - "Interactive Load: {{ 'PASSED' if zsh_interactive_test.rc == 0 else 'FAILED' }}"
+              - "{{ zsh_interactive_test.stdout if zsh_interactive_test.stdout else '' }}"
     
     - name: Check .tool-versions file exists
       stat:
