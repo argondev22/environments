@@ -197,20 +197,3 @@ make check     # 事前確認
 make apply     # 本実行
 make debug     # 詳細ログ
 ```
-
-## 📊 プロジェクト構成
-
-```
-environments/
-├── infra/
-│   ├── playbook.yml              # メインプレイブック
-│   ├── inventory.ini             # インベントリ
-│   ├── group_vars/all.yml        # 暗号化設定（Vault）
-│   ├── templates/chezmoi.toml.j2 # chezmoi設定テンプレート
-│   ├── Makefile                  # 便利なコマンド群
-│   └── .gitignore                # Git除外設定
-├── config/                       # 各種設定ファイル
-├── dotfiles/                     # dotfiles submodule
-├── .gitmodules                   # サブモジュール設定
-└── .github/workflows/            # CI/CD設定
-```
