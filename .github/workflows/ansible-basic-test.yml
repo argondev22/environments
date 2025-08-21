@@ -37,44 +37,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible
 
-      - name: Install platform dependencies
+      - name: Create vault password file
         run: |
-          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            sudo apt update
-            sudo apt install -y age unzip curl git
-          else
-            brew install age
-          fi
-
-      - name: Create test inventory
-        run: |
-          cat > inventory.ini << EOF
-          [local]
-          localhost ansible_connection=local
-          EOF
-
-      - name: Generate test configuration
-        run: |
-          # テスト用のダミーage鍵を生成
-          age-keygen -o /tmp/test_age.key
-          test_key_content=$(cat /tmp/test_age.key)
-          
-          mkdir -p group_vars
-          cat > group_vars/all.yml << EOF
-          # テスト用設定 - 本番では使用しないでください
-          chezmoi_repo_url: "https://github.com/your-username/dotfiles.git"
-          age_private_key_content: |
-          ${test_key_content}
-          EOF
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+          chmod 600 .vault_pass
+        working-directory: infra
 
       - name: Run Ansible syntax check
-        run: ansible-playbook --syntax-check -i infra/inventory.ini infra/playbook.yml --ask-vault-pass
+        run: ansible-playbook --syntax-check -i inventory.ini playbook.yml --vault-password-file .vault_pass
+        working-directory: infra
 
       - name: Run playbook in check mode
         run: |
-          ansible-playbook -i infra/inventory.ini infra/playbook.yml --check --diff --ask-vault-pass
+          ansible-playbook -i inventory.ini playbook.yml --check --diff --vault-password-file .vault_pass
         env:
           SSH_AUTH_SOCK: ""
+        working-directory: infra
 
       - name: Display system information
         run: |
