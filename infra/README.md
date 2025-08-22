@@ -1,19 +1,19 @@
 # Ansible + chezmoi + asdf による統一開発環境の自動構築
 
-[![Ansible Test](https://github.com/argon/environments/workflows/Ansible%20Playbook%20Basic%20Test/badge.svg)](https://github.com/argon/environments/actions)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Ubuntu%20%7C%20WSL-blue)](#対応プラットフォーム)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+## 主なコンポーネント
 
-## ✨ 主な機能
-
-- 🔐 **age暗号化**: SSH鍵・API鍵を安全に管理
-- 📦 **asdf統合**: 言語バージョンを`.tool-versions`で統一管理
+- 🐚 **zsh**: デフォルトシェル
 - 🏠 **Homebrew/Linuxbrew**: パッケージ管理の統一
-- 🐚 **zsh自動設定**: デフォルトシェル化まで完全自動
-- 🔄 **マルチプラットフォーム**: macOS/Ubuntu/WSL対応
-- ⚙️ **完全自動化**: 手動作業ゼロのセットアップ
+- 📦 **asdf**: 各ツールおよびバージョンを統一管理
+- 🔐 **age**: 機密性の高いdotfilesを暗号化して安全に管理
 
-## 🎯 対応プラットフォーム
+## パッケージ/ツール管理の基本方針
+
+- 原則 asdf で管理
+- asdf　で管理できないパッケージは homebrew(Linuxbrew) で管理
+- 上記で対応できない場合は、bin/ にカスタムのインストールスクリプトを作成
+
+## 対応プラットフォーム
 
 | OS | アーキテクチャ | ステータス |
 |---|---|---|
@@ -22,13 +22,12 @@
 | Ubuntu 20.04+ | x64 | ✅ |
 | WSL2 (Ubuntu) | x64 | ✅ |
 
-## 🚀 クイックスタート
+## クイックスタート
 
 ### 前提条件
 
-- **Git**: このリポジトリにアクセス可能
-- **sudo権限**: システム設定変更用
-- **SSH鍵**: GitHubアクセス用（推奨）
+- gitをインストールしていること。
+- Githubとの接続設定が完了していること。
 
 ### 1. Ansibleのインストール
 
@@ -61,7 +60,7 @@ ansible-playbook -i inventory.ini playbook.yml --check --diff --vault-password-f
 ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
 ```
 
-## ✅ セットアップ後の確認
+## 4. セットアップ後の確認
 
 ```bash
 # 環境の読み込み
@@ -94,12 +93,6 @@ age-keygen -y ~/.config/age/age.key  # age公開鍵
 - **age秘密鍵** (`~/.config/age/age.key`): 絶対にGitにコミットしない
 - **Vaultパスワード** (`.vault_pass`): 安全に管理・バックアップ
 - **権限設定**: `chmod 600` で適切な権限を維持
-
-### 🔐 推奨バックアップ方法
-
-- パスワードマネージャーでの管理
-- 暗号化USBでの物理保存
-- 複数の安全な場所での分散保存
 
 ## 🔧 よくあるトラブルと解決法
 
