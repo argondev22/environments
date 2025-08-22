@@ -2,11 +2,13 @@ name: Ansible Playbook Basic Test
 
 on:
   push:
-    branches: [main, feature/*, fix/*]
+    branches: [main]
     paths:
       - 'infra/**'
   pull_request:
-    branches: [main, feature/*, fix/*]
+    branches: [main]
+    paths:
+      - 'infra/**'
   workflow_dispatch:
 
 env:

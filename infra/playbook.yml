@@ -11,6 +11,7 @@
       age_key: "{{ ansible_env.HOME }}/.config/age/age.key"
       chezmoi_source: "{{ ansible_env.HOME }}/.local/share/chezmoi"
       zprofile: "{{ ansible_env.HOME }}/.zprofile"
+      zshrc: "{{ ansible_env.HOME }}/.zshrc"
       tool_versions: "{{ ansible_env.HOME }}/.tool-versions"
 
     brew_configs:
@@ -61,24 +62,11 @@
       shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
       when: brew_check.rc != 0
 
-    - name: Configure shell environment
-      lineinfile:
-        path: "{{ paths.zprofile }}"
-        create: true
-        line: "{{ item }}"
-        state: present
-      loop:
-        - 'eval "$({{ brew.bin }}/brew shellenv)"'
-        - 'export AGE_IDENTITIES_FILE="{{ paths.age_key }}"'
-        - 'export ASDF_DIR="{{ brew.prefix }}/opt/asdf/libexec"'
-        - '. {{ asdf_sh }}'
-
     - name: Install essential system dependencies
       block:
         - name: Install core dependencies (Debian/Ubuntu)
           apt:
             name: 
-              # 基本ツール
               - build-essential
               - unzip
               - curl
@@ -88,7 +76,6 @@
               - dirmngr
               - ca-certificates
               - software-properties-common
-              # 開発用ライブラリ（Python/Ruby等で必要）
               - libssl-dev
               - libffi-dev
               - zlib1g-dev
@@ -109,7 +96,6 @@
             state: present
           when: ansible_facts.os_family == "Darwin"
 
-
     - name: Check existing packages
       command: "{{ brew.bin }}/brew list --versions {{ item }}"
       loop: "{{ packages }}"
@@ -122,8 +108,15 @@
       loop: "{{ package_check.results }}"
       when: item.rc != 0
 
-    - name: Configure zsh as default shell
+    - name: Configure zsh as default shell and install zplug
       block:
+        - name: Install zplug plugin manager
+          git:
+            repo: "https://github.com/zplug/zplug"
+            dest: "{{ paths.home }}/.zplug"
+            version: "master"
+            update: no
+
         - name: Register zsh in /etc/shells
           lineinfile:
             path: /etc/shells
@@ -174,7 +167,10 @@
           vars:
             age_public_key: "{{ age_public_key.stdout.strip() }}"
             age_key_file: "{{ paths.age_key }}"
+            brew_bin: "{{ brew.bin }}"
             brew_prefix: "{{ brew.prefix }}"
+            asdf_dir: "{{ brew.prefix }}/opt/asdf/libexec"
+            asdf_sh: "{{ brew.prefix }}/opt/asdf/libexec/asdf.sh"
 
         - name: Check existing repository
           stat:
@@ -196,20 +192,17 @@
           register: doctor_result
           changed_when: false
 
-        - name: Preview changes
-          command: "{{ brew.bin }}/chezmoi diff"
-          register: diff_result
-          changed_when: false
-          failed_when: false
-
-        - name: Display pending changes
-          debug:
-            msg: "{{ diff_result.stdout_lines }}"
-          when: diff_result.stdout != ""
-
         - name: Apply dotfiles
-          command: "{{ brew.bin }}/chezmoi apply -v"
+          command: "{{ brew.bin }}/chezmoi apply"
           register: apply_result
+          no_log: true
+
+        - name: Create asdf compatibility symlink
+          file:
+            src: "{{ brew.prefix }}/opt/asdf"
+            dest: "{{ paths.home }}/.asdf"
+            state: link
+            force: yes
 
         - name: Get final status
           command: "{{ brew.bin }}/chezmoi status"
@@ -218,7 +211,34 @@
 
       environment:
         AGE_IDENTITIES_FILE: "{{ paths.age_key }}"
-    
+
+    - name: Verify zsh configuration
+      block:
+        - name: Check if .zshrc exists
+          stat:
+            path: "{{ paths.zshrc }}"
+          register: zshrc_final_check
+
+        - name: Test zsh configuration syntax
+          shell: "{{ brew.zsh }} -n {{ paths.zshrc }}"
+          register: zsh_syntax_check
+          failed_when: false
+          when: zshrc_final_check.stat.exists
+
+        - name: Test interactive zsh loading
+          shell: "timeout 10 {{ brew.zsh }} -i -c 'echo ZSH_LOADED_OK && exit 0'"
+          register: zsh_interactive_test
+          failed_when: false
+          when: zshrc_final_check.stat.exists
+
+        - name: Display verification results
+          debug:
+            msg:
+              - "=== ZSH Configuration Verification ==="
+              - ".zshrc exists: {{ 'YES' if zshrc_final_check.stat.exists else 'NO' }}"
+              - "Syntax Check: {{ 'PASSED' if (zshrc_final_check.stat.exists and zsh_syntax_check.rc == 0) else 'SKIPPED/FAILED' }}"
+              - "Interactive Load: {{ 'PASSED' if (zshrc_final_check.stat.exists and zsh_interactive_test.rc == 0) else 'SKIPPED/FAILED' }}"
+
     - name: Check .tool-versions file exists
       stat:
         path: "{{ paths.tool_versions }}"
@@ -304,7 +324,6 @@
 
       environment: "{{ asdf_env }}"
       when: tool_versions_file.stat.exists
-
 
     - name: Display skip message
       debug:
