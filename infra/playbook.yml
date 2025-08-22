@@ -169,6 +169,8 @@
             age_key_file: "{{ paths.age_key }}"
             brew_bin: "{{ brew.bin }}"
             brew_prefix: "{{ brew.prefix }}"
+            asdf_dir: "{{ brew.prefix }}/opt/asdf/libexec"
+            asdf_sh: "{{ brew.prefix }}/opt/asdf/libexec/asdf.sh"
 
         - name: Check existing repository
           stat:
@@ -190,20 +192,10 @@
           register: doctor_result
           changed_when: false
 
-        - name: Preview changes
-          command: "{{ brew.bin }}/chezmoi diff"
-          register: diff_result
-          changed_when: false
-          failed_when: false
-
-        - name: Display pending changes
-          debug:
-            msg: "{{ diff_result.stdout_lines }}"
-          when: diff_result.stdout != ""
-
         - name: Apply dotfiles
-          command: "{{ brew.bin }}/chezmoi apply -v"
+          command: "{{ brew.bin }}/chezmoi apply"
           register: apply_result
+          no_log: true
 
         - name: Create asdf compatibility symlink
           file:
