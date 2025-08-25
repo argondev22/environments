@@ -60,7 +60,10 @@
 
     - name: Install Homebrew
       shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      become: yes
       when: brew_check.rc != 0
+      environment:
+        NONINTERACTIVE: "1"
 
     - name: Install essential system dependencies
       block:
