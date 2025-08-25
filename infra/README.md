@@ -71,7 +71,10 @@ cd environments/infra
 ansible-playbook -i inventory.ini playbook.yml --check --diff --vault-password-file .vault_pass
 
 # 本実行
+## sudoパスワードなし環境
 ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
+## sudoパスワードあり環境（実行時にパスワードを入力）
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
 ```
 
 ## 4. セットアップ後の確認
