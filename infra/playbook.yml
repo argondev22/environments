@@ -344,6 +344,7 @@
         BREW_PREFIX: "{{ brew.prefix }}"
         OS_FAMILY: "{{ ansible_facts.os_family }}"
         ARCH: "{{ ansible_facts.machine }}"
+        PATH: "{{ brew.bin }}:{{ ansible_env.PATH }}"
 
     - name: Final verification and comprehensive summary
       block:
