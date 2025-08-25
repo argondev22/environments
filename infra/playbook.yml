@@ -282,7 +282,7 @@
           set_fact:
             asdf_tools: >-
               {{
-                (tool_versions_raw.content | b64decode | decode('utf-8')).splitlines()
+                (tool_versions_raw.content | b64decode).splitlines()
                 | map('trim')
                 | reject('match', '^(#|$)')
                 | map('split')
