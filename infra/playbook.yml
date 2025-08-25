@@ -330,21 +330,65 @@
         msg: "Skipping asdf setup: .tool-versions file not found at {{ paths.tool_versions }}"
       when: not tool_versions_file.stat.exists
 
-    - name: Verify installation
+    - name: Execute custom scripts
+      shell: |
+        chmod +x "{{ item }}"
+        "{{ item }}"
+      with_fileglob:
+        - "{{ playbook_dir }}/bin/*.sh"
+      register: custom_script_results
+      failed_when: false
+      environment:
+        HOME: "{{ paths.home }}"
+        BREW_BIN: "{{ brew.bin }}"
+        BREW_PREFIX: "{{ brew.prefix }}"
+        OS_FAMILY: "{{ ansible_facts.os_family }}"
+        ARCH: "{{ ansible_facts.machine }}"
+
+    - name: Final verification and comprehensive summary
       block:
-        - name: Check tool versions
+        - name: Check standard tool versions
           command: "{{ brew.bin }}/{{ item }} --version"
           loop: "{{ packages }}"
-          register: versions
+          register: standard_versions
           changed_when: false
           failed_when: false
 
-        - name: Display setup summary
+        - name: Build custom script summary
+          set_fact:
+            custom_success: >-
+              {{
+                (custom_script_results.results | default([]))
+                | selectattr('rc', 'equalto', 0)
+                | map(attribute='item')
+                | map('basename')
+                | list
+              }}
+            custom_failed: >-
+              {{
+                (custom_script_results.results | default([]))
+                | rejectattr('rc', 'equalto', 0)
+                | map(attribute='item')
+                | map('basename')
+                | list
+              }}
+
+        - name: Display comprehensive setup summary
           debug:
             msg:
-              - "=== Setup Complete ==="
-              - "Encryption: Enabled (age)"
-              - "Configuration: {{ paths.chezmoi_config }}/chezmoi.toml"
-              - "Status: {{ final_status.stdout_lines | join(', ') if final_status.stdout_lines else 'Clean' }}"
-              - "Tools: {{ versions.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list | join(', ') }}"
-              - "ASDF Tools: {{ asdf_tools | map('join', ' ') | list | join(', ') if asdf_tools is defined else 'None detected' }}"
+              - "================================================="
+              - "🚀 Development Environment Setup Complete! 🚀"
+              - "================================================="
+              - ""
+              - "📦 Standard Tools: {{ standard_versions.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list | join(', ') }}"
+              - "🔧 ASDF Tools: {{ asdf_tools | map('join', ' ') | list | join(', ') if asdf_tools is defined else 'None detected' }}"
+              - "🛠️  Custom Scripts:"
+              - "   ✅ Success: {{ custom_success | join(', ') if custom_success | length > 0 else 'None' }}"
+              - "   ❌ Failed: {{ custom_failed | join(', ') if custom_failed | length > 0 else 'None' }}"
+              - ""
+              - "🔐 Security: Enabled (age encryption)"
+              - "📁 Dotfiles: {{ final_status.stdout_lines | join(', ') if final_status.stdout_lines else 'Clean' }}"
+              - "⚙️  Configuration: {{ paths.chezmoi_config }}/chezmoi.toml"
+              - ""
+              - "🎉 Ready to code! 🎉"
+              - "================================================="
