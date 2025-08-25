@@ -17,13 +17,14 @@
 
 ```text
 (デフォルトのパッケージマネージャー)
-├── ansible
-└── brew
-	├── zsh
-	├── age
-	├── asdf
-	|	└── .tool-versions # 原則ここで管理
-	└── ... # asdf が対応していないパッケージは brew で管理
+└── ansible
+
+brew
+├── zsh
+├── age
+├── asdf
+|	└── .tool-versions # 原則ここで管理
+└── ... # asdf が対応していないパッケージは brew で管理
 ```
 
 ## 対応プラットフォーム
