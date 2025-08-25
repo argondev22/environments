@@ -64,7 +64,15 @@ git clone --recurse-submodules git@github.com:argon/environments.git
 cd environments/infra
 ```
 
-### 3. セットアップ実行
+### 3. `.vault_pass`ファイルの配置
+
+```bash
+echo "your-vault-pass" > .vault_pass
+```
+
+※ `.vault_pass`は`./group_vars/all.yml`の Ansible Vault を復号するためのパスワード
+
+### 4. セットアップ実行
 
 ```bash
 # 事前確認（推奨）
@@ -77,7 +85,7 @@ ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
 ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
 ```
 
-## 4. セットアップ後の確認
+## 5. セットアップ後の確認
 
 ```bash
 # 環境の読み込み
