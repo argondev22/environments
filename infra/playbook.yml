@@ -58,9 +58,36 @@
       changed_when: false
       failed_when: false
 
+    - name: Prepare Homebrew installation directories (Linux)
+      block:
+        - name: Create /home/linuxbrew directory
+          file:
+            path: /home/linuxbrew
+            state: directory
+            mode: '0755'
+            owner: "{{ ansible_user_id }}"
+            group: "{{ ansible_user_id }}"
+          become: yes
+
+        - name: Create /home/linuxbrew/.linuxbrew directory
+          file:
+            path: /home/linuxbrew/.linuxbrew
+            state: directory
+            mode: '0755'
+            owner: "{{ ansible_user_id }}"
+            group: "{{ ansible_user_id }}"
+          become: yes
+      when:
+        - brew_check.rc != 0
+        - ansible_facts.os_family == "Debian"
+
     - name: Install Homebrew
       shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
       when: brew_check.rc != 0
+      environment:
+        NONINTERACTIVE: "1"
+        HOME: "{{ paths.home }}"
+        USER: "{{ ansible_user_id }}"
 
     - name: Install essential system dependencies
       block:
@@ -258,7 +285,7 @@
                 (tool_versions_raw.content | b64decode).splitlines()
                 | map('trim')
                 | reject('match', '^(#|$)')
-                | map('split')
+                | map('regex_findall', '(\S+)')
                 | list
               }}
 
