@@ -80,7 +80,7 @@ source ~/.zprofile
 
 # 各ツールの確認
 chezmoi status          # dotfiles状態
-asdf current           # インストール済み言語
+asdf current           # インストール済みパッケージ/ツール
 echo $SHELL            # デフォルトシェル
 age-keygen -y ~/.config/age/age.key  # age公開鍵
 ```
