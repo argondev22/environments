@@ -285,7 +285,7 @@
                 (tool_versions_raw.content | b64decode).splitlines()
                 | map('trim')
                 | reject('match', '^(#|$)')
-                | map(attribute='split')
+                | map('regex_findall', '(\S+)')
                 | list
               }}
 
