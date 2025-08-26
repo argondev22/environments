@@ -16,4 +16,4 @@ debug:
 	ansible-playbook -i $(INVENTORY) playbook.yml --check --diff -vvv --vault-password-file $(VAULT_FILE)
 
 clean:
-	rm -f .vault_pass
+	rm -f $(VAULT_FILE)
