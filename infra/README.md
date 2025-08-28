@@ -95,7 +95,7 @@ age-keygen -y ~/.config/age/age.key  # age公開鍵
 - asdf　で管理できないパッケージ/ツールは homebrew(Linuxbrew) で管理
 - 上記で対応できない場合は、bin/ にカスタムのインストールスクリプトを作成
 
-##### 概略図
+**概略図**:
 
 ```text
 (デフォルトのパッケージマネージャー)
@@ -207,7 +207,7 @@ chezmoi git push origin main
 chezmoi update
 ```
 
-## 重要事項
+## 注意事項
 
 - ホームディレクトリ配下の dotfiles を直接修正しない。dotfiles を修正する際は必ず ~/.local/share/chezmoi/ 配下を修正し、`chezmoi apply` コマンドで反映させる。
 - 機密情報を平文のままリモートリポジトリにプッシュしない。
