@@ -209,7 +209,7 @@ chezmoi update
 
 ## 重要事項
 
-- ホームディレクトリ配下の dotfiles を直接修正しない。dotfiles を修正する際は必ず ~/.local/share/chezmoi/ 配下を修正し、``chezmoi apply` コマンドで反映させる。
+- ホームディレクトリ配下の dotfiles を直接修正しない。dotfiles を修正する際は必ず ~/.local/share/chezmoi/ 配下を修正し、`chezmoi apply` コマンドで反映させる。
 - 機密情報を平文のままリモートリポジトリにプッシュしない。
 
 ## トラブルシューティング
