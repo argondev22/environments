@@ -2,12 +2,12 @@
 
 ## 主なコンポーネント
 
-- ☠ **Ansible**: 構成管理
-- 🏠 **Homebrew/Linuxbrew**: パッケージ管理の統一
-- 📦 **asdf**: 各ツールおよびバージョンを統一管理
-- 🏠 **chezmoi**: dotfileの管理
-- 🐚 **zsh**: デフォルトシェル
-- 🔐 **age**: 機密性の高いdotfilesを暗号化して安全に管理
+- **Ansible**: 構成管理
+- **Homebrew/Linuxbrew**: パッケージ管理の統一
+- **asdf**: 各ツールおよびバージョンを統一管理
+- **chezmoi**: dotfileの管理
+- **zsh**: デフォルトシェル
+- **age**: 機密性の高いdotfilesを暗号化して安全に管理
 
 ## 対応プラットフォーム
 
@@ -151,7 +151,7 @@ ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
 ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
 ```
 
-### Homebrew (macOS) / Linuxbrew
+#### Homebrew (macOS) / Linuxbrew
 
 1. ローカルマシンにパッケージをインストール
 
@@ -164,14 +164,22 @@ brew install <package-name>
 3. 変更をリモートリポジトリにプッシュ
 
 ```sh
-chezmoi git add .
-chezmoi git commit -m "コミットメッセージ"
-chezmoi git push origin main
+git add .
+git commit -m "コミットメッセージ"
+git push origin main
 ```
 
 4. 別のマシンでも反映させる
+```sh
+git pull origin main
 
-### chezmoi
+## sudoパスワードなし環境
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
+## sudoパスワードあり環境（実行時にパスワードを入力）
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
+```
+
+#### chezmoi
 
 1. `dot_your-dotfiles` を編集する
 
@@ -199,26 +207,15 @@ chezmoi git push origin main
 chezmoi update
 ```
 
-## 🔒 セキュリティ重要事項
+## 重要事項
 
-### ⚠️ 絶対に守ること
+- ホームディレクトリ配下の dotfiles を直接修正しない。dotfiles を修正する際は必ず ~/.local/share/chezmoi/ 配下を修正し、``chezmoi apply` コマンドで反映させる。
+- 機密情報を平文のままリモートリポジトリにプッシュしない。
 
-- **age秘密鍵** (`~/.config/age/age.key`): 絶対にGitにコミットしない
-- **Vaultパスワード** (`.vault_pass`): 安全に管理・バックアップ
-- **権限設定**: `chmod 600` で適切な権限を維持
-
-## 🔧 よくあるトラブルと解決法
+## トラブルシューティング
 
 ### asdf関連
-```bash
-# バージョンが見つからない場合
-asdf list-all nodejs | tail -10
-vim ~/.tool-versions  # 利用可能なバージョンに修正
 
-# プラグインインストール失敗
-sudo apt install -y unzip curl gnupg  # Ubuntu
-brew install unzip gnupg              # macOS
-```
 
 ### chezmoi関連
 ```bash
@@ -254,52 +251,4 @@ chezmoi edit ~/.env
 
 # 変更を適用
 chezmoi apply
-```
-
-### 新マシンでの展開
-```bash
-git clone git@github.com:argon-dev22/environments.git
-cd environments/infra
-# age鍵を安全に転送・配置
-ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
-```
-
-## 🔄 継続的インテグレーション
-
-GitHub Actionsで以下を自動実行：
-- **構文チェック**: Ansibleプレイブック検証
-- **マルチプラットフォームテスト**: Ubuntu/macOS動作確認
-- **セキュリティスキャン**: 潜在的問題の検出
-
-## 📋 便利なMakefile
-
-```makefile
-# Makefile
-INVENTORY=inventory.ini
-VAULT_FILE=.vault_pass
-
-.PHONY: check apply syntax clean
-
-syntax:
-	ansible-playbook --syntax-check -i $(INVENTORY) playbook.yml
-
-check:
-	ansible-playbook -i $(INVENTORY) playbook.yml --check --diff --vault-password-file $(VAULT_FILE)
-
-apply:
-	ansible-playbook -i $(INVENTORY) playbook.yml --vault-password-file $(VAULT_FILE)
-
-debug:
-	ansible-playbook -i $(INVENTORY) playbook.yml --check --diff -vvv --vault-password-file $(VAULT_FILE)
-
-clean:
-	rm -f .vault_pass
-```
-
-**使用例:**
-```bash
-make syntax    # 構文チェック
-make check     # 事前確認
-make apply     # 本実行
-make debug     # 詳細ログ
 ```
