@@ -143,7 +143,7 @@ chezmoi git push origin main
 4. 別のマシンでも反映させる
 
 ```sh
-chezmoi pull
+chezmoi update
 
 ## sudoパスワードなし環境
 ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
