@@ -258,7 +258,7 @@ chezmoi apply
 
 ### 新マシンでの展開
 ```bash
-git clone git@github.com:argon/environments.git
+git clone git@github.com:argon-dev22/environments.git
 cd environments/infra
 # age鍵を安全に転送・配置
 ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
