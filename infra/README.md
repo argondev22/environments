@@ -2,30 +2,12 @@
 
 ## 主なコンポーネント
 
-- 🐚 **zsh**: デフォルトシェル
+- ☠ **Ansible**: 構成管理
 - 🏠 **Homebrew/Linuxbrew**: パッケージ管理の統一
 - 📦 **asdf**: 各ツールおよびバージョンを統一管理
+- 🏠 **chezmoi**: dotfileの管理
+- 🐚 **zsh**: デフォルトシェル
 - 🔐 **age**: 機密性の高いdotfilesを暗号化して安全に管理
-
-## パッケージ/ツール管理の基本方針
-
-- 原則 asdf で管理
-- asdf　で管理できないパッケージは homebrew(Linuxbrew) で管理
-- 上記で対応できない場合は、bin/ にカスタムのインストールスクリプトを作成
-
-## 概略図
-
-```text
-(デフォルトのパッケージマネージャー)
-└── ansible
-
-brew
-├── zsh
-├── age
-├── asdf
-|	└── .tool-versions # 原則ここで管理
-└── ... # asdf が対応していないパッケージは brew で管理
-```
 
 ## 対応プラットフォーム
 
@@ -36,7 +18,7 @@ brew
 | Ubuntu 20.04+ | x64 | ✅ |
 | WSL2 (Ubuntu) | x64 | ✅ |
 
-## クイックスタート
+## 初回セットアップ
 
 ### 前提条件
 
@@ -98,18 +80,124 @@ echo $SHELL            # デフォルトシェル
 age-keygen -y ~/.config/age/age.key  # age公開鍵
 ```
 
-## 🛠️ 管理されるツール
+## 運用ルール
 
-### パッケージマネージャー
-- **Homebrew** (macOS) / **Linuxbrew** (Linux)
+### 管理対象
 
-### セキュリティ・設定管理
-- **chezmoi**: dotfiles管理・暗号化対応
-- **age**: 軽量暗号化ツール
+- パッケージ/ツール
+- dotfiles
 
-### 開発環境
-- **asdf**: ツールバージョン管理
-- **zsh**: 高機能シェル
+### 管理方針
+
+#### パッケージ/ツール
+
+- 原則 asdf で管理
+- asdf　で管理できないパッケージ/ツールは homebrew(Linuxbrew) で管理
+- 上記で対応できない場合は、bin/ にカスタムのインストールスクリプトを作成
+
+##### 概略図
+
+```text
+(デフォルトのパッケージマネージャー)
+└── ansible
+
+brew
+├── asdf
+|	└── .tool-versions # 原則ここで管理
+└── ... # asdf が対応していないパッケージは brew で管理
+
+(カスタムスクリプト) # 上記で対応できない場合は、カスタムスクリプトを作成
+```
+
+#### dotfiles
+
+- chezmoi で全て管理
+
+### 運用フロー
+
+#### asdf
+
+1. `dot_tool-versions` を編集する
+
+```sh
+chezmoi edit .tool-versions # あるいは ~/.local/share/chezmoi 配下の dot_tool-versions を編集
+```
+
+2. ローカルマシンに反映させる
+
+```sh
+## sudoパスワードなし環境
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
+## sudoパスワードあり環境（実行時にパスワードを入力）
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
+```
+
+3. 変更をリモートリポジトリにプッシュ
+
+```sh
+chezmoi git add .
+chezmoi git commit -m "コミットメッセージ"
+chezmoi git push origin main
+```
+
+4. 別のマシンでも反映させる
+
+```sh
+chezmoi pull
+
+## sudoパスワードなし環境
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
+## sudoパスワードあり環境（実行時にパスワードを入力）
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
+```
+
+### Homebrew (macOS) / Linuxbrew
+
+1. ローカルマシンにパッケージをインストール
+
+```sh
+brew install <package-name>
+```
+
+2. playbook.yml を編集し、パッケージを追加する
+
+3. 変更をリモートリポジトリにプッシュ
+
+```sh
+chezmoi git add .
+chezmoi git commit -m "コミットメッセージ"
+chezmoi git push origin main
+```
+
+4. 別のマシンでも反映させる
+
+### chezmoi
+
+1. `dot_your-dotfiles` を編集する
+
+```sh
+chezmoi edit .your-dotfiles # あるいは ~/.local/share/chezmoi 配下の dot_your-dotfiles を編集
+```
+
+2. ローカルマシンに反映させる
+
+```sh
+chezmoi apply
+```
+
+3. 変更をリモートリポジトリにプッシュ
+
+```sh
+chezmoi git add .
+chezmoi git commit -m "コミットメッセージ"
+chezmoi git push origin main
+```
+
+4. 別のマシンでも反映させる
+
+```sh
+chezmoi update
+```
 
 ## 🔒 セキュリティ重要事項
 
