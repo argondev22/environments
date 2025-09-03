@@ -357,27 +357,51 @@
         msg: "Skipping asdf setup: .tool-versions file not found at {{ paths.tool_versions }}"
       when: not tool_versions_file.stat.exists
 
-    - name: Check which custom scripts need to be executed
-      stat:
-        path: "{{ item }}"
-      with_fileglob:
-        - "{{ playbook_dir }}/bin/*.sh"
-      register: custom_scripts_check
+    - name: Discover custom scripts
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/bin"
+        patterns: "*.sh"
+        file_type: file
+      register: custom_scripts_found
 
-    - name: Execute custom scripts only if command doesn't exist
-      shell: >
-        SCRIPT_NAME=$(basename "{{ item.item }}" .sh) &&
-        if command -v "$SCRIPT_NAME" >/dev/null 2>&1; then
-          echo "Command '$SCRIPT_NAME' already exists, skipping installation";
-        else
-          echo "Installing $SCRIPT_NAME..." &&
-          chmod +x "{{ item.item }}" &&
-          "{{ item.item }}";
-        fi
-      with_items: "{{ custom_scripts_check.results }}"
-      when: item.stat.exists
-      register: custom_script_results
+    - name: Build structured script information
+      set_fact:
+        custom_scripts_info: >-
+          {{
+            (custom_scripts_info | default([])) + [{
+              'name': (item | basename | regex_replace('\.sh$', '')),
+              'path': item
+            }]
+          }}
+      loop: "{{ custom_scripts_found.files | map(attribute='path') | list }}"
+      when: (custom_scripts_found.matched | default(0)) > 0
+
+    - name: Check if target commands already exist
+      command: "command -v {{ item.name }}"
+      register: command_existence_check
+      changed_when: false
       failed_when: false
+      loop: "{{ custom_scripts_info | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      environment:
+        PATH: "{{ brew.bin }}:{{ ansible_env.PATH }}"
+        HOME: "{{ paths.home }}"
+
+    - name: Execute custom scripts for missing commands
+      shell: |
+        echo "Installing {{ item.name }}..."
+        chmod +x "{{ item.path }}"
+        "{{ item.path }}"
+      register: custom_script_execution
+      failed_when: false
+      loop: "{{ custom_scripts_info | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: >
+        (command_existence_check.results | 
+         selectattr('item.name', 'equalto', item.name) | 
+         first).rc != 0
       environment:
         HOME: "{{ paths.home }}"
         BREW_BIN: "{{ brew.bin }}"
@@ -395,26 +419,38 @@
           changed_when: false
           failed_when: false
 
-        - name: Build custom script summary
+        - name: Build custom script summary with enhanced safety
           set_fact:
             custom_success: >-
               {{
-                (custom_script_results.results | default([]))
+                (custom_script_execution.results | default([]))
+                | rejectattr('skipped', 'defined')
+                | selectattr('rc', 'defined')
                 | selectattr('rc', 'equalto', 0)
                 | map(attribute='item')
-                | map(attribute='item')
-                | map('basename')
+                | map(attribute='name')
                 | list
               }}
             custom_failed: >-
               {{
-                (custom_script_results.results | default([]))
+                (custom_script_execution.results | default([]))
+                | rejectattr('skipped', 'defined')
+                | selectattr('rc', 'defined')
                 | rejectattr('rc', 'equalto', 0)
                 | map(attribute='item')
-                | map(attribute='item')
-                | map('basename')
+                | map(attribute='name')
                 | list
               }}
+            custom_skipped: >-
+              {{
+                (command_existence_check.results | default([]))
+                | selectattr('rc', 'defined')
+                | selectattr('rc', 'equalto', 0)
+                | map(attribute='item')
+                | map(attribute='name')
+                | list
+              }}
+
 
         - name: Display comprehensive setup summary
           debug:
@@ -427,6 +463,7 @@
               - "🔧 ASDF Tools: {{ asdf_tools | map('join', ' ') | list | join(', ') if asdf_tools is defined else 'None detected' }}"
               - "🛠️  Custom Scripts:"
               - "   ✅ Success: {{ custom_success | join(', ') if custom_success | length > 0 else 'None' }}"
+              - "   ⏭️  Skipped: {{ custom_skipped | join(', ') if custom_skipped | length > 0 else 'None' }}"
               - "   ❌ Failed: {{ custom_failed | join(', ') if custom_failed | length > 0 else 'None' }}"
               - ""
               - "🔐 Security: Enabled (age encryption)"
