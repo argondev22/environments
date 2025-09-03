@@ -377,13 +377,15 @@
       when: (custom_scripts_found.matched | default(0)) > 0
 
     - name: Check if target commands already exist
-      command: "command -v {{ item.name }}"
+      shell: |
+        command -v {{ item.name }}
       register: command_existence_check
       changed_when: false
       failed_when: false
       loop: "{{ custom_scripts_info | default([]) }}"
       loop_control:
         label: "{{ item.name }}"
+        index_var: script_index
       environment:
         PATH: "{{ brew.bin }}:{{ ansible_env.PATH }}"
         HOME: "{{ paths.home }}"
@@ -398,10 +400,8 @@
       loop: "{{ custom_scripts_info | default([]) }}"
       loop_control:
         label: "{{ item.name }}"
-      when: >
-        (command_existence_check.results | 
-         selectattr('item.name', 'equalto', item.name) | 
-         first).rc != 0
+        index_var: script_index
+      when: command_existence_check.results[script_index].rc != 0
       environment:
         HOME: "{{ paths.home }}"
         BREW_BIN: "{{ brew.bin }}"
@@ -409,7 +409,7 @@
         OS_FAMILY: "{{ ansible_facts.os_family }}"
         ARCH: "{{ ansible_facts.machine }}"
         PATH: "{{ brew.bin }}:{{ ansible_env.PATH }}"
-
+    
     - name: Final verification and comprehensive summary
       block:
         - name: Check standard tool versions
