@@ -249,12 +249,14 @@
         - name: Test zsh configuration syntax
           shell: "{{ brew.zsh }} -n {{ paths.zshrc }}"
           register: zsh_syntax_check
+          changed_when: false
           failed_when: false
           when: zshrc_final_check.stat.exists
 
         - name: Test interactive zsh loading
           shell: "timeout 10 {{ brew.zsh }} -i -c 'echo ZSH_LOADED_OK && exit 0'"
           register: zsh_interactive_test
+          changed_when: false
           failed_when: false
           when: zshrc_final_check.stat.exists
 
