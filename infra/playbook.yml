@@ -365,19 +365,15 @@
       register: custom_scripts_check
 
     - name: Execute custom scripts only if command doesn't exist
-      shell: |
-        # Extract command name from script filename (remove path and .sh extension)
-        SCRIPT_NAME=$(basename {{ item.item | quote }} .sh)
-        
-        # Check if command already exists
+      shell: >
+        SCRIPT_NAME=$(basename "{{ item.item }}" .sh) &&
         if command -v "$SCRIPT_NAME" >/dev/null 2>&1; then
-          echo "Command '$SCRIPT_NAME' already exists, skipping installation"
-          exit 0
+          echo "Command '$SCRIPT_NAME' already exists, skipping installation";
+        else
+          echo "Installing $SCRIPT_NAME..." &&
+          chmod +x "{{ item.item }}" &&
+          "{{ item.item }}";
         fi
-        
-        # Execute the script if command doesn't exist
-        chmod +x {{ item.item | quote }}
-        {{ item.item | quote }}
       with_items: "{{ custom_scripts_check.results }}"
       when: item.stat.exists
       register: custom_script_results
@@ -406,6 +402,7 @@
                 (custom_script_results.results | default([]))
                 | selectattr('rc', 'equalto', 0)
                 | map(attribute='item')
+                | map(attribute='item')
                 | map('basename')
                 | list
               }}
@@ -413,6 +410,7 @@
               {{
                 (custom_script_results.results | default([]))
                 | rejectattr('rc', 'equalto', 0)
+                | map(attribute='item')
                 | map(attribute='item')
                 | map('basename')
                 | list
