@@ -357,12 +357,29 @@
         msg: "Skipping asdf setup: .tool-versions file not found at {{ paths.tool_versions }}"
       when: not tool_versions_file.stat.exists
 
-    - name: Execute custom scripts
-      shell: |
-        chmod +x "{{ item }}"
-        "{{ item }}"
+    - name: Check which custom scripts need to be executed
+      stat:
+        path: "{{ item }}"
       with_fileglob:
         - "{{ playbook_dir }}/bin/*.sh"
+      register: custom_scripts_check
+
+    - name: Execute custom scripts only if command doesn't exist
+      shell: |
+        # Extract command name from script filename (remove path and .sh extension)
+        SCRIPT_NAME=$(basename {{ item.item | quote }} .sh)
+        
+        # Check if command already exists
+        if command -v "$SCRIPT_NAME" >/dev/null 2>&1; then
+          echo "Command '$SCRIPT_NAME' already exists, skipping installation"
+          exit 0
+        fi
+        
+        # Execute the script if command doesn't exist
+        chmod +x {{ item.item | quote }}
+        {{ item.item | quote }}
+      with_items: "{{ custom_scripts_check.results }}"
+      when: item.stat.exists
       register: custom_script_results
       failed_when: false
       environment:
