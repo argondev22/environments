@@ -322,15 +322,58 @@
           args:
             executable: /bin/bash
 
-        - name: Install tools from .tool-versions
-          shell: '. "{{ asdf_sh }}" && cd "{{ paths.home }}" && asdf install'
+        - name: Check currently installed tool versions
+          shell: '. "{{ asdf_sh }}" && asdf current {{ item[0] }} 2>/dev/null | grep "{{ item[1] }}" || echo "not_installed"'
+          loop: "{{ asdf_tools }}"
+          register: current_tool_versions
+          failed_when: false
+          changed_when: false
           when: asdf_tools is defined
+          args:
+            executable: /bin/bash
+
+        - name: Identify tools that need installation
+          set_fact:
+            tools_to_install: >-
+              {{
+                asdf_tools | zip(current_tool_versions.results)
+                | selectattr('1.stdout', 'match', 'not_installed')
+                | map('first')
+                | list
+              }}
+          when: 
+            - asdf_tools is defined
+            - current_tool_versions.results is defined
+
+        - name: Display tools that need installation
+          debug:
+            msg: "Tools to install: {{ tools_to_install | map('join', ' ') | list | join(', ') }}"
+          when: 
+            - tools_to_install is defined
+            - tools_to_install | length > 0
+
+        - name: Display already installed tools
+          debug:
+            msg: "Already installed tools (skipping): {{ asdf_tools | difference(tools_to_install) | map('join', ' ') | list | join(', ') }}"
+          when: 
+            - asdf_tools is defined
+            - tools_to_install is defined
+            - (asdf_tools | length) > (tools_to_install | length)
+
+        - name: Install missing tools from .tool-versions
+          shell: '. "{{ asdf_sh }}" && cd "{{ paths.home }}" && asdf install {{ item[0] }} {{ item[1] }}'
+          loop: "{{ tools_to_install }}"
+          when: 
+            - tools_to_install is defined
+            - tools_to_install | length > 0
           args:
             executable: /bin/bash
 
         - name: Reshim asdf executables
           shell: '. "{{ asdf_sh }}" && asdf reshim'
-          when: asdf_tools is defined
+          when: 
+            - tools_to_install is defined
+            - tools_to_install | length > 0
           args:
             executable: /bin/bash
 
