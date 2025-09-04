@@ -1,13 +1,30 @@
 # Ansible + chezmoi + asdf による統一開発環境の自動構築
 
+## 目次
+
+- [主なコンポーネント](#主なコンポーネント)
+- [動作確認済みの Ansible バージョン](#動作確認済みの-ansible-バージョン)
+- [対応プラットフォーム](#対応プラットフォーム)
+- [運用ルール](#運用ルール)
+- [注意事項](#注意事項)
+- [トラブルシューティング](#トラブルシューティング)
+- [よく用いるコマンド集](#よく用いるコマンド集)
+- [初回セットアップ](#初回セットアップ)
+
 ## 主なコンポーネント
 
-- **Ansible**: 構成管理
-- **Homebrew/Linuxbrew**: パッケージ管理の統一
-- **asdf**: 各ツールおよびバージョンを統一管理
-- **chezmoi**: dotfileの管理
-- **zsh**: デフォルトシェル
-- **age**: 機密性の高いdotfilesを暗号化して安全に管理
+- **[Ansible](https://www.ansible.com/)**: 構成管理
+- **[Homebrew](https://brew.sh/)/[Linuxbrew](https://docs.brew.sh/Homebrew-on-Linux)**: パッケージ管理の統一
+- **[asdf](https://asdf-vm.com/)**: 各ツールおよびバージョンを統一管理
+- **[chezmoi](https://www.chezmoi.io/)**: dotfileの管理
+- **[zsh](https://www.zsh.org/)**: デフォルトシェル
+- **[age](https://age-encryption.org/)**: 機密性の高いdotfilesを暗号化して安全に管理
+
+## 動作確認済みの Ansible バージョン
+
+| バージョン | 対応状況 | 備考 |
+|---|---|---|
+| 2.18.x | ✅ | 推奨バージョン |
 
 ## 対応プラットフォーム
 
@@ -17,68 +34,6 @@
 | macOS | Intel x64 | ✅ |
 | Ubuntu 20.04+ | x64 | ✅ |
 | WSL2 (Ubuntu) | x64 | ✅ |
-
-## 初回セットアップ
-
-### 前提条件
-
-- gitをインストールしていること。
-- Githubとの接続設定が完了していること。
-
-### 1. Ansibleのインストール
-
-```bash
-# macOS
-brew install ansible
-
-# Ubuntu/Debian/WSL
-sudo apt update && sudo apt install -y ansible
-
-# Arch Linux
-sudo pacman -S ansible
-```
-
-### 2. 環境の準備
-
-```bash
-# リポジトリクローン
-git clone --recurse-submodules git@github.com:argon/environments.git
-cd environments/infra
-```
-
-### 3. `.vault_pass`ファイルの配置
-
-```bash
-echo "your-vault-pass" > .vault_pass
-```
-
-※ `.vault_pass`は`./group_vars/all.yml`の Ansible Vault を復号するためのパスワード
-
-### 4. セットアップ実行
-
-```bash
-# 事前確認（推奨）
-ansible-playbook -i inventory.ini playbook.yml --check --diff --vault-password-file .vault_pass
-
-# 本実行
-## sudoパスワードなし環境
-ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
-## sudoパスワードあり環境（実行時にパスワードを入力）
-ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
-```
-
-## 5. セットアップ後の確認
-
-```bash
-# 環境の読み込み
-source ~/.zprofile
-
-# 各ツールの確認
-chezmoi status          # dotfiles状態
-asdf current           # インストール済みパッケージ/ツール
-echo $SHELL            # デフォルトシェル
-age-keygen -y ~/.config/age/age.key  # age公開鍵
-```
 
 ## 運用ルール
 
@@ -123,6 +78,8 @@ brew
 chezmoi edit .tool-versions # あるいは ~/.local/share/chezmoi 配下の dot_tool-versions を編集
 ```
 
+※ 直接 `~/.zshrc` を編集しないこと
+
 2. ローカルマシンに反映させる
 
 ```sh
@@ -159,7 +116,7 @@ ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
 brew install <package-name>
 ```
 
-2. playbook.yml を編集し、パッケージを追加する
+2. [Brewfile](Brewfile) を編集し、パッケージを追加する
 
 3. 変更をリモートリポジトリにプッシュ
 
@@ -216,23 +173,23 @@ chezmoi update
 ## トラブルシューティング
 
 ### chezmoi関連
-```bash
+```sh
 # 初期化失敗
 chezmoi doctor  # 設定確認
 ls -la ~/.config/age/age.key  # 鍵の存在・権限確認
 ```
 
 ### シェル関連
-```bash
+```sh
 # zshに切り替わらない
 echo $SHELL
 # 新しいターミナルを開く、またはログインし直す
 ```
 
-## 高度な使用方法
+## よく用いるコマンド集
 
 ### カスタムツール追加
-```bash
+```sh
 # .tool-versionsを編集
 echo "terraform 1.10.3" >> ~/.tool-versions
 asdf plugin add terraform
@@ -240,7 +197,7 @@ asdf install terraform 1.10.3
 ```
 
 ### 暗号化ファイル管理
-```bash
+```sh
 # 新しい秘密ファイルを追加
 chezmoi add --encrypt ~/.aws/credentials
 
@@ -250,3 +207,76 @@ chezmoi edit ~/.env
 # 変更を適用
 chezmoi apply
 ```
+
+### サブモジュール（dotfiles）
+```sh
+# Gitサブモジュールを初期化・更新
+git submodule update --init --recursive
+
+# Gitサブモジュールを最新の状態に更新
+git submodule update --remote --merge
+```
+
+## 初回セットアップ
+
+### 0. 前提条件
+
+- Python インタプリタがインストールされていること（[Ansible のインストール](#1-ansible-のインストール)で必要）。
+
+### 1. Ansible のインストール
+
+```sh
+# macOS
+brew install ansible
+
+# Ubuntu/Debian/WSL
+sudo apt update && sudo apt install -y ansible
+
+# Arch Linux
+sudo pacman -S ansible
+```
+
+※ Ansible は Python で動作するため、Python のインタプリタがインストールされている必要がある。　
+
+### 2. 環境の準備
+
+```sh
+# リポジトリクローン
+git clone --recurse-submodules git@github.com:argon/environments.git
+cd environments/infra
+```
+
+### 3. `.vault_pass`ファイルの配置
+
+```sh
+echo "your-vault-pass" > .vault_pass
+```
+
+※ `.vault_pass`は`./group_vars/all.yml`の Ansible Vault を復号するためのパスワード
+
+### 4. セットアップ実行
+
+```sh
+# 事前確認（推奨）
+ansible-playbook -i inventory.ini playbook.yml --check --diff --vault-password-file .vault_pass
+
+# 本実行
+## sudoパスワードなし環境
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
+## sudoパスワードあり環境（実行時にパスワードを入力）
+ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
+```
+
+### 5. セットアップ後の確認
+
+```sh
+# 環境の読み込み
+source ~/.zprofile
+
+# 各ツールの確認
+chezmoi status          # dotfiles状態
+asdf current           # インストール済みパッケージ/ツール
+echo $SHELL            # デフォルトシェル
+age-keygen -y ~/.config/age/age.key  # age公開鍵
+```
+
