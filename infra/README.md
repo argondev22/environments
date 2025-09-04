@@ -1,4 +1,4 @@
-# Ansible + chezmoi + asdf による統一開発環境の自動構築
+# Ansible による統一ユーザー空間の自動構築
 
 ## 目次
 
@@ -48,7 +48,7 @@
 
 - 原則 asdf で管理
 - asdf　で管理できないパッケージ/ツールは homebrew(Linuxbrew) で管理
-- 上記で対応できない場合は、bin/ にカスタムのインストールスクリプトを作成
+- 上記で対応できない場合は、[`bin/`](bin/) にカスタムのインストールスクリプトを作成
 
 **概略図**:
 
@@ -144,6 +144,8 @@ ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
 chezmoi edit .your-dotfiles # あるいは ~/.local/share/chezmoi 配下の dot_your-dotfiles を編集
 ```
 
+※ 直接 `~/.zshrc` を編集しないこと
+
 2. ローカルマシンに反映させる
 
 ```sh
@@ -172,48 +174,60 @@ chezmoi update
 
 ## トラブルシューティング
 
-### chezmoi関連
+### chezmoi
+
 ```sh
 # 初期化失敗
 chezmoi doctor  # 設定確認
 ls -la ~/.config/age/age.key  # 鍵の存在・権限確認
 ```
 
-### シェル関連
+### シェル
+
 ```sh
-# zshに切り替わらない
+# zsh に切り替わらない
 echo $SHELL
 # 新しいターミナルを開く、またはログインし直す
 ```
 
 ## よく用いるコマンド集
 
-### カスタムツール追加
+### asdf
+
 ```sh
-# .tool-versionsを編集
+# .tool-versions を編集
 echo "terraform 1.10.3" >> ~/.tool-versions
+
+# プラグインを追加
 asdf plugin add terraform
+
+# ツールをインストール
 asdf install terraform 1.10.3
 ```
 
-### 暗号化ファイル管理
-```sh
-# 新しい秘密ファイルを追加
-chezmoi add --encrypt ~/.aws/credentials
+### chezmoi
 
-# 暗号化ファイルを編集
-chezmoi edit ~/.env
+```sh
+# 新しい dotfiles を追加
+chezmoi add ~/.tool-verions
+
+# 機密性の高い dotfiles を追加
+chezmoi add --encrypt ~/.aws/credentials
 
 # 変更を適用
 chezmoi apply
+
+# リモートリポジトリから最新の変更を取得して適用
+chezmoi update
 ```
 
-### サブモジュール（dotfiles）
+### Git Submodule
+
 ```sh
-# Gitサブモジュールを初期化・更新
+# サブモジュールを初期化・更新
 git submodule update --init --recursive
 
-# Gitサブモジュールを最新の状態に更新
+# サブモジュールを最新の状態に更新
 git submodule update --remote --merge
 ```
 
