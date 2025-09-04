@@ -2,8 +2,6 @@
 - hosts: local
   gather_facts: yes
   vars:
-    packages: [zsh, asdf, chezmoi, age]
-    
     paths:
       home: "{{ ansible_env.HOME }}"
       chezmoi_config: "{{ ansible_env.HOME }}/.config/chezmoi"
@@ -123,17 +121,20 @@
             state: present
           when: ansible_facts.os_family == "Darwin"
 
-    - name: Check existing packages
-      command: "{{ brew.bin }}/brew list --versions {{ item }}"
-      loop: "{{ packages }}"
-      register: package_check
+    - name: Parse Brewfile to extract package names
+      shell: |
+        grep '^brew ' "{{ playbook_dir }}/Brewfile" | sed 's/^brew "\(.*\)"/\1/' | tr '\n' ' '
+      register: brewfile_packages_raw
       changed_when: false
-      failed_when: false
 
-    - name: Install missing packages
-      shell: "{{ brew.bin }}/brew install {{ item.item }}"
-      loop: "{{ package_check.results }}"
-      when: item.rc != 0
+    - name: Set brewfile packages fact
+      set_fact:
+        brewfile_packages: "{{ brewfile_packages_raw.stdout.strip().split() }}"
+
+    - name: Install packages from Brewfile
+      shell: "{{ brew.bin }}/brew bundle --file={{ playbook_dir }}/Brewfile"
+      register: brew_bundle_result
+      changed_when: "'Installing' in brew_bundle_result.stdout or 'Upgrading' in brew_bundle_result.stdout"
 
     - name: Configure zsh as default shell and install zplug
       block:
@@ -476,7 +477,7 @@
       block:
         - name: Check standard tool versions
           command: "{{ brew.bin }}/{{ item }} --version"
-          loop: "{{ packages }}"
+          loop: "{{ brewfile_packages }}"
           register: standard_versions
           changed_when: false
           failed_when: false
