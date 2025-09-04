@@ -174,21 +174,29 @@ chezmoi update
 
 ## トラブルシューティング
 
+### ansible
+
+- **Register zsh in /etc/shells タスクで実行が停止しまう**:</br>
+    管理者権限昇格に必要なパスワード（`--ask-become-pass`）が正しいかどうか確認する
+
 ### chezmoi
 
-```sh
-# 初期化失敗
-chezmoi doctor  # 設定確認
-ls -la ~/.config/age/age.key  # 鍵の存在・権限確認
-```
+- **初期化に失敗する**:</br>
+    下記を実行して確認する
+
+    ```sh
+    chezmoi doctor  # 設定確認
+    ls -la ~/.config/age/age.key  # 鍵の存在・権限確認
+    ```
 
 ### シェル
 
-```sh
-# zsh に切り替わらない
-echo $SHELL
-# 新しいターミナルを開く、またはログインし直す
-```
+- **zsh に切り替わらない**:</br>
+    下記を実行して確認後、新しいターミナルを開く、またはログインし直す
+
+    ```sh
+    echo $SHELL
+    ```
 
 ## よく用いるコマンド集
 
