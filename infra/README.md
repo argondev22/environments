@@ -72,7 +72,7 @@ brew
 
 #### asdf
 
-1. `dot_tool-versions` を編集する
+1. [`dot_tool-versions`](../dotfiles/dot_tool-versions) を編集する
 
 ```sh
 chezmoi edit .tool-versions # あるいは ~/.local/share/chezmoi 配下の dot_tool-versions を編集
