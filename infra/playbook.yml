@@ -219,10 +219,17 @@
           register: doctor_result
           changed_when: false
 
+        - name: Check if dotfiles need to be applied
+          command: "{{ brew.bin }}/chezmoi diff"
+          register: chezmoi_diff_check
+          changed_when: false
+          failed_when: false
+
         - name: Apply dotfiles
           command: "{{ brew.bin }}/chezmoi apply"
           register: apply_result
           no_log: true
+          when: chezmoi_diff_check.stdout != ""
 
         - name: Create asdf compatibility symlink
           file:
@@ -314,13 +321,21 @@
           args:
             executable: /bin/bash
 
+        - name: Check nodejs keyring status
+          stat:
+            path: "{{ paths.home }}/.gnupg/pubring.gpg"
+          register: nodejs_keyring_check
+          when: 
+            - asdf_tools is defined
+            - asdf_tools | map('first') | list | select('match', 'nodejs') | list | length > 0
+
         - name: Handle nodejs plugin requirements
           shell: '. "{{ asdf_sh }}" && bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring'
           when: 
             - asdf_tools is defined
             - asdf_tools | map('first') | list | select('match', 'nodejs') | list | length > 0
+            - not nodejs_keyring_check.stat.exists
           failed_when: false
-          changed_when: false
           args:
             executable: /bin/bash
 
@@ -373,6 +388,7 @@
 
         - name: Reshim asdf executables
           shell: '. "{{ asdf_sh }}" && asdf reshim'
+          changed_when: false
           when: 
             - tools_to_install is defined
             - tools_to_install | length > 0
@@ -442,6 +458,7 @@
         "{{ item.path }}"
       register: custom_script_execution
       failed_when: false
+      changed_when: custom_script_execution.rc == 0
       loop: "{{ custom_scripts_info | default([]) }}"
       loop_control:
         label: "{{ item.name }}"
