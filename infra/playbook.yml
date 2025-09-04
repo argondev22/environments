@@ -424,7 +424,7 @@
           block:
             - name: Parse Brewfile to extract package names
               shell: |
-                grep '^brew ' "{{ paths.brewfile }}" | sed 's/^brew "\(.*\)"/\1/' | tr '\n' ' '
+                (grep '^brew ' "{{ paths.brewfile }}" | sed 's/^brew "\(.*\)"/\1/' && grep '^cask ' "{{ paths.brewfile }}" | sed 's/^cask "\(.*\)"/\1/') | tr '\n' ' '
               register: brewfile_packages_raw
               changed_when: false
 
