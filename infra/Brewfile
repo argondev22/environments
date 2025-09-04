@@ -1,4 +1,0 @@
-brew "zsh"
-brew "asdf"
-brew "chezmoi"
-brew "age"
