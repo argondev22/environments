@@ -169,8 +169,8 @@ chezmoi update
 ## 注意事項
 
 - ホームディレクトリ配下の dotfiles を直接修正しない。dotfiles を修正する際は必ず ~/.local/share/chezmoi/ 配下を修正し、`chezmoi apply` コマンドで反映させる。
-- 機密情報を平文のままリモートリポジトリにプッシュしない。
-- playbook.yml の追加実装や修正を行う際は、`make check` コマンドでテスト・デバッグを行いながら進める（いきなり `make apply` を行わない）。
+- 機密情報を平文のままリモートリポジトリにプッシュしない。chezmoi や ansible の暗号化機能を活用する。
+- playbook.yml の追加実装や修正を行う際は、`make check` コマンドでテスト・デバッグを行いながら進める（いきなり `make apply` を行わない）。ただし、`make check` と `make apply` で一部、挙動が変化してしまうため、`make apply` でないと確認できないタスクも存在する。
 
 ## トラブルシューティング
 
