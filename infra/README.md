@@ -16,24 +16,24 @@
 - **[Ansible](https://www.ansible.com/)**: 構成管理
 - **[Homebrew](https://brew.sh/)/[Linuxbrew](https://docs.brew.sh/Homebrew-on-Linux)**: パッケージ管理の統一
 - **[asdf](https://asdf-vm.com/)**: 各ツールおよびバージョンを統一管理
-- **[chezmoi](https://www.chezmoi.io/)**: dotfileの管理
+- **[chezmoi](https://www.chezmoi.io/)**: dotfile の管理
 - **[zsh](https://www.zsh.org/)**: デフォルトシェル
-- **[age](https://age-encryption.org/)**: 機密性の高いdotfilesを暗号化して安全に管理
+- **[age](https://age-encryption.org/)**: 機密性の高い dotfiles を暗号化して安全に管理
 
 ## 動作確認済みの Ansible バージョン
 
-| バージョン | 対応状況 | 備考 |
-|---|---|---|
-| 2.18.x | ✅ | 推奨バージョン |
+| バージョン | 対応状況 | 備考         |
+|-----------|---------|-------------|
+| 2.18.x    | ✅      | 推奨バージョン |
 
 ## 対応プラットフォーム
 
-| OS | アーキテクチャ | ステータス |
-|---|---|---|
-| macOS | Apple Silicon (M1/M2/M3) | ✅ |
-| macOS | Intel x64 | ✅ |
-| Ubuntu 20.04+ | x64 | ✅ |
-| WSL2 (Ubuntu) | x64 | ✅ |
+| OS              | アーキテクチャ                | ステータス |
+|-----------------|---------------------------|----------|
+| macOS           | Apple Silicon (M1/M2/M3)  | ✅       |
+| macOS           | Intel x64                 | ✅       |
+| Ubuntu 20.04+   | x64                       | ✅       |
+| WSL2 (Ubuntu)   | x64                       | ✅       |
 
 ## 運用ルール
 
@@ -47,7 +47,7 @@
 #### パッケージ/ツール
 
 - 原則 asdf で管理
-- asdf　で管理できないパッケージ/ツールは homebrew(Linuxbrew) で管理
+- asdf で管理できないパッケージ/ツールは homebrew(Linuxbrew) で管理
 - 上記で対応できない場合は、[`bin/`](bin/) にカスタムのインストールスクリプトを作成
 
 **概略図**:
