@@ -51,7 +51,7 @@
           PATH: "{{ ansible_env.PATH }}:{{ brew.prefix }}/opt/asdf/shims:{{ brew.prefix }}/opt/asdf/bin"
 
   tasks:
-    - name: Setup Homebrew（Linuxbrew） and install main packages
+    - name: Setup Homebrew(Linuxbrew) and install main packages
       block:
         - name: Check Homebrew installation
           command: "{{ brew.bin }}/brew --version"
@@ -495,12 +495,78 @@
 
     - name: Final verification and comprehensive summary
       block:
-        - name: Check standard tool versions
+        - name: Check Homebrew installation status
+          command: "{{ brew.bin }}/brew --version"
+          register: homebrew_status_check
+          changed_when: false
+          failed_when: false
+
+        - name: Check zsh configuration status
+          block:
+            - name: Check if .zshrc exists
+              stat:
+                path: "{{ paths.zshrc }}"
+              register: zshrc_status_check
+
+            - name: Test zsh configuration syntax
+              shell: "{{ brew.zsh }} -n {{ paths.zshrc }}"
+              register: zsh_syntax_status
+              changed_when: false
+              failed_when: false
+              when: zshrc_status_check.stat.exists
+
+            - name: Test interactive zsh loading
+              shell: "timeout 10 {{ brew.zsh }} -i -c 'echo ZSH_LOADED_OK && exit 0'"
+              register: zsh_interactive_status
+              changed_when: false
+              failed_when: false
+              when: zshrc_status_check.stat.exists
+
+        - name: Check dotfiles status
+          command: "{{ brew.bin }}/chezmoi status"
+          register: dotfiles_status_check
+          changed_when: false
+          failed_when: false
+
+        - name: Check packages from Homebrew(Linuxbrew) versions
           command: "{{ brew.bin }}/{{ item }} --version"
           loop: "{{ brewfile_packages }}"
           register: standard_versions
           changed_when: false
           failed_when: false
+
+        - name: Build tools from asdf summary
+          set_fact:
+            asdf_success: >-
+              {{
+                asdf_tools | map('join', ' ') | list
+                if asdf_tools is defined and asdf_tools | length > 0
+                else []
+              }}
+            asdf_skipped: >-
+              {{
+                [] if tool_versions_file.stat.exists | default(false)
+                else ['.tool-versions not found']
+              }}
+            asdf_failed: []
+
+        - name: Build packages from Homebrew(Linuxbrew) summary
+          set_fact:
+            homebrew_success: >-
+              {{
+                standard_versions.results
+                | selectattr('rc', 'equalto', 0)
+                | map(attribute='item')
+                | list
+              }}
+            homebrew_skipped: []
+            homebrew_failed: >-
+              {{
+                standard_versions.results
+                | rejectattr('rc', 'equalto', 0)
+                | map(attribute='item')
+                | list
+              }}
 
         - name: Build custom script summary with enhanced safety
           set_fact:
@@ -534,7 +600,6 @@
                 | list
               }}
 
-
         - name: Display comprehensive setup summary
           debug:
             msg:
@@ -542,16 +607,36 @@
               - "🚀 Development Environment Setup Complete! 🚀"
               - "================================================="
               - ""
-              - "📦 Standard Tools: {{ standard_versions.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list | join(', ') }}"
-              - "🔧 ASDF Tools: {{ asdf_tools | map('join', ' ') | list | join(', ') if asdf_tools is defined else 'None detected' }}"
-              - "🛠️  Custom Scripts:"
-              - "   ✅ Success: {{ custom_success | join(', ') if custom_success | length > 0 else 'None' }}"
-              - "   ⏭️  Skipped: {{ custom_skipped | join(', ') if custom_skipped | length > 0 else 'None' }}"
-              - "   ❌ Failed: {{ custom_failed | join(', ') if custom_failed | length > 0 else 'None' }}"
+              - "📋 Homebrew Installation Health Check:"
+              - "   ✅ Status: {{ 'OK' if homebrew_status_check.rc == 0 else 'FAILED' }}"
+              - "   📍 Path: {{ brew.bin }}/brew"
               - ""
-              - "🔐 Security: Enabled (age encryption)"
-              - "📁 Dotfiles: {{ final_status.stdout_lines | join(', ') if final_status.stdout_lines else 'Clean' }}"
-              - "⚙️  Configuration: {{ paths.chezmoi_config }}/chezmoi.toml"
+              - "🐚 Zsh Configuration Health Check:"
+              - "   ✅ .zshrc exists: {{ 'YES' if zshrc_status_check.stat.exists else 'NO' }}"
+              - "   ✅ Syntax check: {{ 'PASSED' if (zshrc_status_check.stat.exists and zsh_syntax_status.rc == 0) else 'SKIPPED/FAILED' }}"
+              - "   ✅ Interactive load: {{ 'PASSED' if (zshrc_status_check.stat.exists and zsh_interactive_status.rc == 0) else 'SKIPPED/FAILED' }}"
               - ""
-              - "🎉 Ready to code! 🎉"
+              - "📁 Dotfiles Health Check:"
+              - "   ✅ Status: {{ 'Clean' if dotfiles_status_check.stdout == '' else 'Pending changes' }}"
+              - "   📍 Config: {{ paths.chezmoi_config }}/chezmoi.toml"
+              - ""
+              - "🛠️  Installed Packages/Tools Health Check:"
+              - ""
+              - "   📦 Tools from ASDF:"
+              - "     ✅ Success: {{ asdf_success | join(', ') if asdf_success | length > 0 else 'None' }}"
+              - "     ⏭️  Skipped: {{ asdf_skipped | join(', ') if asdf_skipped | length > 0 else 'None' }}"
+              - "     ❌ Failed: {{ asdf_failed | join(', ') if asdf_failed | length > 0 else 'None' }}"
+              - ""
+              - "   🍺 Packages from Homebrew:"
+              - "     ✅ Success: {{ homebrew_success | join(', ') if homebrew_success | length > 0 else 'None' }}"
+              - "     ⏭️  Skipped: {{ homebrew_skipped | join(', ') if homebrew_skipped | length > 0 else 'None' }}"
+              - "     ❌ Failed: {{ homebrew_failed | join(', ') if homebrew_failed | length > 0 else 'None' }}"
+              - ""
+              - "   🔧 Packages/Tools from Custom Scripts:"
+              - "     ✅ Success: {{ custom_success | join(', ') if custom_success | length > 0 else 'None' }}"
+              - "     ⏭️  Skipped: {{ custom_skipped | join(', ') if custom_skipped | length > 0 else 'None' }}"
+              - "     ❌ Failed: {{ custom_failed | join(', ') if custom_failed | length > 0 else 'None' }}"
+              - ""
+              - "🎉 Setup Complete! 🎉"
+              - ""
               - "================================================="
