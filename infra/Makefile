@@ -15,8 +15,5 @@ apply:
 debug:
 	ansible-playbook -i $(INVENTORY) playbook.yml --check --diff -vvv --vault-password-file $(VAULT_FILE) --ask-become-pass
 
-yamllint:
-	yamllint .
-
 clean:
 	rm -f $(VAULT_FILE)
