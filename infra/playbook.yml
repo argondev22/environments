@@ -677,7 +677,7 @@
               - "   ✅ Status: {{ 'Clean' if dotfiles_status_check.stdout == '' else 'Pending changes' }}"
               - "   📍 Config: {{ paths.chezmoi_config }}/chezmoi.toml"
               - ""
-              - "🛠️  Installed Packages/Tools Health Check:"
+              - "🛠️ Installed Packages/Tools Health Check:"
               - ""
               - "   📦 Tools from ASDF:"
               - "     ✅ Success: {{ asdf_success | join(', ') if asdf_success | length > 0 else 'None' }}"
