@@ -70,6 +70,37 @@ brew
 
 ### 運用フロー
 
+#### dotfiles（chezmoi）
+
+1. `dot_your-dotfiles` を編集する
+
+```sh
+chezmoi edit .your-dotfiles # あるいは ~/.local/share/chezmoi 配下の dot_your-dotfiles を編集
+```
+
+※ 直接 `~/.your-dotefiles` を編集しないこと
+
+2. ローカルマシンに反映させる
+
+```sh
+chezmoi apply
+```
+
+3. 変更をリモートリポジトリにプッシュ
+
+```sh
+chezmoi git add .
+chezmoi git commit -m "コミットメッセージ"
+chezmoi git push origin main
+```
+
+4. 別のマシンでも反映させる
+
+```sh
+chezmoi update
+```
+
+
 #### asdf
 
 1. [`dot_tool-versions`](../dotfiles/dot_tool-versions) を編集する
@@ -116,7 +147,13 @@ ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
 brew install <package-name>
 ```
 
-2. [Brewfile](Brewfile) を編集し、パッケージを追加する
+2. [dot_Brewfile](../dotfiles/dot_Brewfile) を編集する
+
+```sh
+chezmoi edit .Brewfile # あるいは ~/.local/share/chezmoi 配下の dot_Brewfile を編集
+```
+
+※ 直接 `~/.Brewfile` を編集しないこと
 
 3. 変更をリモートリポジトリにプッシュ
 
@@ -136,35 +173,6 @@ ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass
 ansible-playbook -i inventory.ini playbook.yml --vault-password-file .vault_pass --ask-become-pass
 ```
 
-#### chezmoi
-
-1. `dot_your-dotfiles` を編集する
-
-```sh
-chezmoi edit .your-dotfiles # あるいは ~/.local/share/chezmoi 配下の dot_your-dotfiles を編集
-```
-
-※ 直接 `~/.zshrc` を編集しないこと
-
-2. ローカルマシンに反映させる
-
-```sh
-chezmoi apply
-```
-
-3. 変更をリモートリポジトリにプッシュ
-
-```sh
-chezmoi git add .
-chezmoi git commit -m "コミットメッセージ"
-chezmoi git push origin main
-```
-
-4. 別のマシンでも反映させる
-
-```sh
-chezmoi update
-```
 
 ## 注意事項
 
@@ -198,7 +206,7 @@ chezmoi update
     echo $SHELL
     ```
 
-## よく用いるコマンド集
+## よく用いるコマンド
 
 ### asdf
 
