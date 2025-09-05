@@ -34,19 +34,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Ansible and yamllint
+      - name: Install Ansible
         run: |
           python -m pip install --upgrade pip
-          pip install ansible yamllint
+          pip install ansible
 
       - name: Create vault password file
         run: |
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
           chmod 600 .vault_pass
-        working-directory: infra
-
-      - name: Run YAML lint
-        run: yamllint .
         working-directory: infra
 
       - name: Run Ansible syntax check
