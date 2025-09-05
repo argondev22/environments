@@ -418,6 +418,11 @@
               debug:
                 msg: "Skipping asdf setup: .tool-versions file not found at {{ paths.tool_versions }}"
               when: not tool_versions_file.stat.exists
+        - name: Check if Brewfile exists
+          stat:
+            path: "{{ paths.brewfile }}"
+          register: brewfile_check
+
         - name: Install packages from Brewfile
           block:
             - name: Parse Brewfile to extract package names
@@ -434,6 +439,12 @@
               shell: "{{ brew.bin }}/brew bundle --file={{ paths.brewfile }}"
               register: brew_bundle_result
               changed_when: "'Installing' in brew_bundle_result.stdout or 'Upgrading' in brew_bundle_result.stdout"
+          when: brewfile_check.stat.exists
+
+        - name: Display Brewfile skip message
+          debug:
+            msg: "Skipping Homebrew package installation: Brewfile not found at {{ paths.brewfile }}"
+          when: not brewfile_check.stat.exists
 
         - name: Install packages or tools from custom scripts
           block:
@@ -528,10 +539,11 @@
 
         - name: Check packages from Homebrew(Linuxbrew) versions
           command: "{{ brew.bin }}/{{ item }} --version"
-          loop: "{{ brewfile_packages }}"
-          register: standard_versions
+          loop: "{{ brewfile_packages | default([]) }}"
+          register: brew_pacakge_versions
           changed_when: false
           failed_when: false
+          when: brewfile_check.stat.exists and (brewfile_packages | default([]) | length > 0)
 
         - name: Build tools from asdf summary
           set_fact:
@@ -552,18 +564,49 @@
           set_fact:
             homebrew_success: >-
               {{
-                standard_versions.results
-                | selectattr('rc', 'equalto', 0)
-                | map(attribute='item')
-                | list
+                (
+                  (brew_bundle_result.stdout_lines | default([])
+                  | select('search', 'Installing ')
+                  | map('regex_replace', '^Installing (.+)$', '\\1')
+                  | list) +
+                  (brew_bundle_result.stdout_lines | default([])
+                  | select('search', 'Upgrading ')
+                  | map('regex_replace', '^Upgrading (.+)$', '\\1')
+                  | list)
+                )
+                if (brewfile_check.stat.exists | default(false)) and (brew_bundle_result is defined)
+                else []
               }}
-            homebrew_skipped: []
+            homebrew_skipped: >-
+              {{
+                (
+                  (brewfile_packages | default([])) |
+                  difference(
+                    (brew_bundle_result.stdout_lines | default([])
+                    | select('search', 'Installing ')
+                    | map('regex_replace', '^Installing (.+)$', '\\1')
+                    | list) +
+                    (brew_bundle_result.stdout_lines | default([])
+                    | select('search', 'Upgrading ')
+                    | map('regex_replace', '^Upgrading (.+)$', '\\1')
+                    | list) +
+                    (brew_pacakge_versions.results | default([])
+                    | rejectattr('rc', 'equalto', 0)
+                    | map(attribute='item')
+                    | list)
+                  )
+                )
+                if (brewfile_check.stat.exists | default(false)) and (brew_bundle_result is defined)
+                else (['Brewfile not found'] if not (brewfile_check.stat.exists | default(false)) else [])
+              }}
             homebrew_failed: >-
               {{
-                standard_versions.results
+                brew_pacakge_versions.results | default([])
                 | rejectattr('rc', 'equalto', 0)
                 | map(attribute='item')
                 | list
+                if brewfile_check.stat.exists | default(false)
+                else []
               }}
 
         - name: Build custom script summary with enhanced safety
@@ -578,21 +621,21 @@
                 | map(attribute='name')
                 | list
               }}
+            custom_skipped: >-
+              {{
+                (command_existence_check.results | default([]))
+                | selectattr('rc', 'defined')
+                | selectattr('rc', 'equalto', 0)
+                | map(attribute='item')
+                | map(attribute='name')
+                | list
+              }}
             custom_failed: >-
               {{
                 (custom_script_execution.results | default([]))
                 | rejectattr('skipped', 'defined')
                 | selectattr('rc', 'defined')
                 | rejectattr('rc', 'equalto', 0)
-                | map(attribute='item')
-                | map(attribute='name')
-                | list
-              }}
-            custom_skipped: >-
-              {{
-                (command_existence_check.results | default([]))
-                | selectattr('rc', 'defined')
-                | selectattr('rc', 'equalto', 0)
                 | map(attribute='item')
                 | map(attribute='name')
                 | list
