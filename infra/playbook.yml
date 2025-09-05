@@ -381,6 +381,8 @@
                 - name: Install missing tools from .tool-versions
                   shell: '. "{{ asdf_sh }}" && cd "{{ paths.home }}" && asdf install {{ item[0] }} {{ item[1] }}'
                   loop: "{{ tools_to_install }}"
+                  register: asdf_install_results
+                  failed_when: false
                   when:
                     - tools_to_install is defined
                     - tools_to_install | length > 0
@@ -540,7 +542,7 @@
         - name: Check packages from Homebrew(Linuxbrew) versions
           command: "{{ brew.bin }}/{{ item }} --version"
           loop: "{{ brewfile_packages | default([]) }}"
-          register: brew_pacakge_versions
+          register: brew_package_versions
           changed_when: false
           failed_when: false
           when: brewfile_check.stat.exists and (brewfile_packages | default([]) | length > 0)
@@ -549,16 +551,30 @@
           set_fact:
             asdf_success: >-
               {{
-                asdf_tools | map('join', ' ') | list
-                if asdf_tools is defined and asdf_tools | length > 0
+                (asdf_install_results.results | default([])
+                | selectattr('rc', 'equalto', 0)
+                | map(attribute='item')
+                | map('join', ' ')
+                | list)
+                if tool_versions_file.stat.exists | default(false) and asdf_install_results is defined
                 else []
               }}
             asdf_skipped: >-
               {{
-                [] if tool_versions_file.stat.exists | default(false)
+                (asdf_tools | default([]) | difference(tools_to_install | default([])) | map('join', ' ') | list)
+                if tool_versions_file.stat.exists | default(false)
                 else ['.tool-versions not found']
               }}
-            asdf_failed: []
+            asdf_failed: >-
+              {{
+                (asdf_install_results.results | default([])
+                | rejectattr('rc', 'equalto', 0)
+                | map(attribute='item')
+                | map('join', ' ')
+                | list)
+                if tool_versions_file.stat.exists | default(false) and asdf_install_results is defined
+                else []
+              }}
 
         - name: Build packages from Homebrew(Linuxbrew) summary
           set_fact:
@@ -590,7 +606,7 @@
                     | select('search', 'Upgrading ')
                     | map('regex_replace', '^Upgrading (.+)$', '\\1')
                     | list) +
-                    (brew_pacakge_versions.results | default([])
+                    (brew_package_versions.results | default([])
                     | rejectattr('rc', 'equalto', 0)
                     | map(attribute='item')
                     | list)
@@ -601,7 +617,7 @@
               }}
             homebrew_failed: >-
               {{
-                brew_pacakge_versions.results | default([])
+                brew_package_versions.results | default([])
                 | rejectattr('rc', 'equalto', 0)
                 | map(attribute='item')
                 | list
