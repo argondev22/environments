@@ -1,5 +1,5 @@
 - hosts: local
-  gather_facts: yes
+  gather_facts: true
   vars:
     paths:
       home: "{{ ansible_env.HOME }}"
@@ -67,7 +67,7 @@
                 mode: '0755'
                 owner: "{{ ansible_user_id }}"
                 group: "{{ ansible_user_id }}"
-              become: yes
+              become: true
 
             - name: Create /home/linuxbrew/.linuxbrew directory
               file:
@@ -76,7 +76,7 @@
                 mode: '0755'
                 owner: "{{ ansible_user_id }}"
                 group: "{{ ansible_user_id }}"
-              become: yes
+              become: true
           when:
             - brew_check.rc != 0
             - ansible_facts.os_family == "Debian"
@@ -93,7 +93,7 @@
           block:
             - name: Install core dependencies (Debian/Ubuntu)
               apt:
-                name: 
+                name:
                   - build-essential
                   - unzip
                   - curl
@@ -110,9 +110,9 @@
                   - libreadline-dev
                   - libsqlite3-dev
                   - xz-utils
-                update_cache: yes
+                update_cache: true
                 state: present
-              become: yes
+              become: true
               when: ansible_facts.os_family == "Debian"
 
             - name: Install core dependencies (macOS)
@@ -125,12 +125,12 @@
 
         - name: Install main packages
           community.general.homebrew:
-                name:
-                  - zsh
-                  - chezmoi
-                  - age
-                  - asdf
-                state: present
+            name:
+              - zsh
+              - chezmoi
+              - age
+              - asdf
+            state: present
 
     - name: Configure zsh as default shell and install zplug
       block:
@@ -139,14 +139,14 @@
             repo: "https://github.com/zplug/zplug"
             dest: "{{ paths.home }}/.zplug"
             version: "master"
-            update: no
+            update: false
 
         - name: Register zsh in /etc/shells
           lineinfile:
             path: /etc/shells
             line: "{{ brew.zsh }}"
             state: present
-          become: yes
+          become: true
 
         - name: Get current shell
           command: /bin/sh -lc 'echo "$SHELL"'
@@ -157,7 +157,7 @@
           user:
             name: "{{ ansible_user_id }}"
             shell: "{{ brew.zsh }}"
-          become: yes
+          become: true
           when: current_shell.stdout != brew.zsh
 
         - name: Verify zsh configuration
@@ -262,7 +262,7 @@
             src: "{{ brew.prefix }}/opt/asdf"
             dest: "{{ paths.home }}/.asdf"
             state: link
-            force: yes
+            force: true
 
         - name: Get final status
           command: "{{ brew.bin }}/chezmoi status"
@@ -315,7 +315,7 @@
                 - name: Install missing asdf plugins
                   shell: '. "{{ asdf_sh }}" && asdf plugin add {{ item[0] }}'
                   loop: "{{ asdf_tools }}"
-                  when: 
+                  when:
                     - asdf_tools is defined
                     - item[0] not in (installed_plugins.stdout_lines | default([]))
                   failed_when: false
@@ -326,13 +326,13 @@
                   stat:
                     path: "{{ paths.home }}/.gnupg/pubring.gpg"
                   register: nodejs_keyring_check
-                  when: 
+                  when:
                     - asdf_tools is defined
                     - asdf_tools | map('first') | list | select('match', 'nodejs') | list | length > 0
 
                 - name: Handle nodejs plugin requirements
                   shell: '. "{{ asdf_sh }}" && bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring'
-                  when: 
+                  when:
                     - asdf_tools is defined
                     - asdf_tools | map('first') | list | select('match', 'nodejs') | list | length > 0
                     - not nodejs_keyring_check.stat.exists
@@ -359,21 +359,21 @@
                         | map('first')
                         | list
                       }}
-                  when: 
+                  when:
                     - asdf_tools is defined
                     - current_tool_versions.results is defined
 
                 - name: Display tools that need installation
                   debug:
                     msg: "Tools to install: {{ tools_to_install | map('join', ' ') | list | join(', ') }}"
-                  when: 
+                  when:
                     - tools_to_install is defined
                     - tools_to_install | length > 0
 
                 - name: Display already installed tools
                   debug:
                     msg: "Already installed tools (skipping): {{ asdf_tools | difference(tools_to_install) | map('join', ' ') | list | join(', ') }}"
-                  when: 
+                  when:
                     - asdf_tools is defined
                     - tools_to_install is defined
                     - (asdf_tools | length) > (tools_to_install | length)
@@ -381,7 +381,7 @@
                 - name: Install missing tools from .tool-versions
                   shell: '. "{{ asdf_sh }}" && cd "{{ paths.home }}" && asdf install {{ item[0] }} {{ item[1] }}'
                   loop: "{{ tools_to_install }}"
-                  when: 
+                  when:
                     - tools_to_install is defined
                     - tools_to_install | length > 0
                   args:
@@ -390,7 +390,7 @@
                 - name: Reshim asdf executables
                   shell: '. "{{ asdf_sh }}" && asdf reshim'
                   changed_when: false
-                  when: 
+                  when:
                     - tools_to_install is defined
                     - tools_to_install | length > 0
                   args:
@@ -407,7 +407,7 @@
                 - name: Display installed versions
                   debug:
                     msg: "{{ asdf_current.stdout_lines }}"
-                  when: 
+                  when:
                     - asdf_tools is defined
                     - asdf_current.stdout_lines is defined
 
@@ -418,7 +418,6 @@
               debug:
                 msg: "Skipping asdf setup: .tool-versions file not found at {{ paths.tool_versions }}"
               when: not tool_versions_file.stat.exists
-  
         - name: Install packages from Brewfile
           block:
             - name: Parse Brewfile to extract package names
