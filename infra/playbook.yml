@@ -35,7 +35,7 @@
 
     - name: Set platform-specific configuration
       set_fact:
-        brew: "{{ brew_configs[ansible_facts.os_family + '_' + ansible_facts.machine] | default(brew_configs[ansible_facts.os_family + '_default'], {}) }}"
+        brew: "{{ brew_configs[ansible_facts.os_family + '_' + ansible_facts.machine] | default(brew_configs[ansible_facts.os_family + '_default']) | default({}) }}"
 
     - name: Validate platform support
       fail:
