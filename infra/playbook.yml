@@ -209,7 +209,7 @@
 
         - name: Extract age public key
           command: "{{ brew.bin }}/age-keygen -y {{ paths.age_key }}"
-          register: age_public_key
+          register: age_keygen_result
           changed_when: false
 
         - name: Generate chezmoi configuration
@@ -218,7 +218,7 @@
             dest: "{{ paths.chezmoi_config }}/chezmoi.toml"
             mode: '0644'
           vars:
-            age_public_key: "{{ age_public_key.stdout.strip() }}"
+            age_public_key: "{{ age_keygen_result.stdout.strip() }}"
             age_key_file: "{{ paths.age_key }}"
             brew_bin: "{{ brew.bin }}"
             brew_prefix: "{{ brew.prefix }}"
