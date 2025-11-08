@@ -1,0 +1,24 @@
+{
+  "id": 9629066,
+  "name": "Require Semantic Versioning",
+  "target": "tag",
+  "source_type": "Repository",
+  "source": "argondev22/template.development",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "exclude": [
+        "refs/tags/v*.*.*"
+      ],
+      "include": [
+        "~ALL"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "creation"
+    }
+  ],
+  "bypass_actors": []
+}

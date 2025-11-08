@@ -1,0 +1,25 @@
+{
+  "id": 9629648,
+  "name": "Restrict Dangerous Operation in Tag",
+  "target": "tag",
+  "source_type": "Repository",
+  "source": "argondev22/template.development",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "refs/tags/v*.*.*"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    }
+  ],
+  "bypass_actors": []
+}

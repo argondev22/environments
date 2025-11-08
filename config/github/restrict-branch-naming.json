@@ -1,0 +1,26 @@
+{
+  "id": 9629562,
+  "name": "Restrict Branch Naming",
+  "target": "branch",
+  "source_type": "Repository",
+  "source": "argondev22/template.development",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "exclude": [
+        "refs/heads/feature/*",
+        "refs/heads/release/*",
+        "refs/heads/hotfix/*"
+      ],
+      "include": [
+        "~ALL"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "creation"
+    }
+  ],
+  "bypass_actors": []
+}

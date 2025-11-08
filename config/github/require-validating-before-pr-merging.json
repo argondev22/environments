@@ -1,0 +1,82 @@
+{
+  "id": 9629243,
+  "name": "Require Validating before PR Merging",
+  "target": "branch",
+  "source_type": "Repository",
+  "source": "argondev22/template.development",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "~DEFAULT_BRANCH",
+        "refs/heads/main"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          {
+            "context": "Lint GitHub Actions workflows",
+            "integration_id": 15368
+          },
+          {
+            "context": "Lint JSON files",
+            "integration_id": 15368
+          },
+          {
+            "context": "Lint Markdown files",
+            "integration_id": 15368
+          },
+          {
+            "context": "Lint YAML files",
+            "integration_id": 15368
+          },
+          {
+            "context": "Check code formatting with Prettier",
+            "integration_id": 15368
+          }
+        ]
+      }
+    },
+    {
+      "type": "copilot_code_review",
+      "parameters": {
+        "review_on_push": true,
+        "review_draft_pull_requests": false
+      }
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "required_reviewers": [],
+        "require_code_owner_review": true,
+        "require_last_push_approval": true,
+        "required_review_thread_resolution": true,
+        "automatic_copilot_code_review_enabled": true,
+        "allowed_merge_methods": [
+          "merge",
+          "squash",
+          "rebase"
+        ]
+      }
+    },
+    {
+      "type": "update"
+    }
+  ],
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "always"
+    }
+  ]
+}
