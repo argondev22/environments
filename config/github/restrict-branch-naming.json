@@ -9,8 +9,9 @@
     "ref_name": {
       "exclude": [
         "refs/heads/feature/*",
-        "refs/heads/release/*",
-        "refs/heads/hotfix/*"
+        "refs/heads/fix/*",
+        "refs/heads/docs/*",
+        "refs/heads/refactor/*"
       ],
       "include": [
         "~ALL"
