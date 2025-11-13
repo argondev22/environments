@@ -22,10 +22,6 @@
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           {
-            "context": "Lint JSON files",
-            "integration_id": 15368
-          },
-          {
             "context": "Lint Markdown files",
             "integration_id": 15368
           },
@@ -35,10 +31,6 @@
           },
           {
             "context": "Lint GitHub Actions workflows",
-            "integration_id": 15368
-          },
-          {
-            "context": "actionlint",
             "integration_id": 15368
           },
           {
